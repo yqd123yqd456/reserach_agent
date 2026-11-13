@@ -52,7 +52,7 @@ ABC 评估的 10 个 benchmark 中，7 个违反任务效度，7 个违反结果
 4. **子串匹配的弱点**：处理否定（“不是 54.04”也包含“54.04”）；防止列出所有可能答案（ABC O.b.1、O.b.2）。
 5. **去除未来信息**：Terminal-Bench 删除仓库中的未来 git 提交。
 6. **合法的放弃出口**：ImpossibleBench 中提供“请求人工介入”选项显著降低作弊率（[07](07_从评估信号到post-training.md)）。
-7. **canary 字符串**：Terminal-Bench 1.x 的 `task.yaml` 含 canary GUID，用于检测数据是否进入训练语料。
+7. **canary 字符串**：Terminal-Bench 1.x 的 `task.yaml` 含 canary GUID。canary 的通常用途是检测任务数据是否进入训练语料（这是一般做法的推断，仓库中未读到对用途的说明）。
 
 ## 5. Rubric 与 LLM judge
 

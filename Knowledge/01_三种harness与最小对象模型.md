@@ -38,7 +38,7 @@ UK AISI 的 Inspect AI（commit `e4435baa`，2026-11-12；代码已读，未运�
 | `Epochs` + reducer | `_eval/task/epochs.py`、`scorer/_reducer/` | 每个样本重复 n 次，再用 mean、pass_at、at_least 等合并 |
 | `EvalLog` / `EvalSample` | `log/_log.py` | 配置、结果、每样本每 epoch 的消息、事件、用量、错误、限制 |
 
-**可学的设计**：sandbox 的生命周期以**样本**为单位（`sample_init` / `sample_cleanup`），这是 reset 的落点；scorer 拿到的是 `TaskState`（包括 sandbox 可访问的状态），因此可以检查结果而不是自述；`EvalSample.error` 与 `error_retries` 把错误与分数分开记录。
+**可学的设计**：sandbox 的生命周期以**样本**为单位（`sample_init` / `sample_cleanup`），这是 reset 的落点；scorer 的输入是 `TaskState` 与 `Target`，而不只是模型的最终文本，因此可以设计成检查结果而不是自述（scorer 在判分时访问 sandbox 的具体方式本次未读到，属推断）；`EvalSample.error` 与 `error_retries` 把错误与分数分开记录。
 
 ## 3. 最小对象模型：输入与输出
 
