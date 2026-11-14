@@ -41,18 +41,40 @@ def task_stats():
         a["n"] += 1; a["passed"] += r["success"]; a["models"].add(r["model"])
     return {t: {"n": a["n"], "passed": a["passed"], "models": sorted(a["models"])} for t, a in agg.items()}
 
+MIN_QUOTE_LEN = 8                       # 引用去掉首尾空白后至少 8 个字符；更短的片段（如 "ok"、"A2"）几乎在任何步骤里都能找到
+UNCITED_KEY = "uncited_same_pattern"    # 结论里可选的字段：列出“同一模式、未逐条引用”的 run
+
 def validate_evidence(finding):
-    """逐条校验引用：run 存在、步骤存在、引用的原文确实出现在该步骤（或该 run 的检查与环境记录）里。"""
+    """逐条校验引用，返回问题列表（空列表 = 通过）。规则：
+    1 run_ids 非空且都存在；2 每条证据引用的 run 必须在本结论的 run_ids 里；
+    3 位置是 type 为 int 的步骤下标（True、"2" 都不接受）或字面量 "checks"；
+    4 quote 是字符串，strip 后长度 ≥ MIN_QUOTE_LEN，并且是该位置 JSON 序列化文本的子串；
+    5 run_ids 里的每条 run 要么至少有一条有效引用，要么列在 finding["uncited_same_pattern"] 里。
+    通过只说明“引用的原文存在”，不说明原文支持结论。"""
     problems = []
-    for e in finding.get("evidence", []):
-        r = RUNS.get(e.get("run_id"))
-        if r is None: problems.append(f"unknown run {e.get('run_id')}"); continue
-        where = e.get("step")
-        if where == "checks": text = json.dumps({"checks": r["checks"], "env_errors": r["env_errors"], "tool_spec": r["tool_spec"]}, ensure_ascii=False)
-        elif isinstance(where, int) and 0 <= where < len(r["steps"]): text = step_text(r["steps"][where])
-        else: problems.append(f"{e['run_id']}: no such step {where!r}"); continue
-        if e.get("quote", "") not in text: problems.append(f"{e['run_id']} step {where}: quote not found: {e.get('quote')!r}")
-    if not finding.get("evidence"): problems.append("no evidence cited")
+    run_ids = finding.get("run_ids") or []
+    if not run_ids: problems.append("empty run_ids")
+    problems += [f"run_ids: unknown run {rid!r}" for rid in run_ids if not (isinstance(rid, str) and rid in RUNS)]
+    evidence = finding.get("evidence") or []
+    if not evidence: problems.append("no evidence cited")
+    cited = set()
+    for e in evidence:
+        rid, where, quote = e.get("run_id"), e.get("step"), e.get("quote")
+        r = RUNS.get(rid) if isinstance(rid, str) else None
+        if r is None: problems.append(f"unknown run {rid!r}"); continue
+        if rid not in run_ids: problems.append(f"{rid}: cited run is not in this finding's run_ids"); continue
+        if type(where) is str and where == "checks":
+            text = json.dumps({"checks": r["checks"], "env_errors": r["env_errors"], "tool_spec": r["tool_spec"]}, ensure_ascii=False)
+        elif type(where) is int and 0 <= where < len(r["steps"]): text = step_text(r["steps"][where])
+        else: problems.append(f"{rid}: no such step {where!r}"); continue
+        if not isinstance(quote, str) or len(quote.strip()) < MIN_QUOTE_LEN:
+            problems.append(f"{rid} step {where}: quote missing or shorter than {MIN_QUOTE_LEN} chars: {quote!r}"); continue
+        if quote not in text: problems.append(f"{rid} step {where}: quote not found: {quote!r}"); continue
+        cited.add(rid)
+    uncited_ok = finding.get(UNCITED_KEY) or []
+    problems += [f"{UNCITED_KEY}: {rid!r} is not in run_ids" for rid in uncited_ok if rid not in run_ids]
+    problems += [f"{rid}: in run_ids but neither validly cited nor listed in {UNCITED_KEY}" for rid in run_ids
+                 if rid not in cited and rid not in uncited_ok]
     return problems
 
 if __name__ == "__main__":

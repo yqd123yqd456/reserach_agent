@@ -28,6 +28,7 @@
     "args": {
      "email": "ana@example.com"
     },
+    "args_key": "{\"email\":\"ana@example.com\"}",
     "result": {
      "ok": true,
      "output": {
@@ -49,6 +50,7 @@
      "customer_id": "c1",
      "last4": "1234"
     },
+    "args_key": "{\"customer_id\":\"c1\",\"last4\":\"1234\"}",
     "result": {
      "ok": true,
      "output": {
@@ -70,6 +72,7 @@
      "order_id": "A2",
      "address": "9 New Ave"
     },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
     "result": {
      "ok": true,
      "output": {
@@ -113,11 +116,13 @@
   "state_diff": [
    {
     "path": "/orders/A2/address",
+    "op": "changed",
     "before": "1 Old St",
     "after": "9 New Ave"
    },
    {
     "path": "/session/verified_customer",
+    "op": "changed",
     "before": null,
     "after": "c1"
    }
@@ -153,6 +158,7 @@
      "customer_id": "c1",
      "last4": "1234"
     },
+    "args_key": "{\"customer_id\":\"c1\",\"last4\":\"1234\"}",
     "result": {
      "ok": true,
      "output": {
@@ -174,6 +180,7 @@
      "order_id": "B1",
      "address": "9 New Ave"
     },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"B1\"}",
     "result": {
      "ok": false,
      "error": {
@@ -218,6 +225,7 @@
   "state_diff": [
    {
     "path": "/session/verified_customer",
+    "op": "changed",
     "before": null,
     "after": "c1"
    }
@@ -258,6 +266,7 @@
     "args": {
      "email": "ana@example.com"
     },
+    "args_key": "{\"email\":\"ana@example.com\"}",
     "result": {
      "ok": true,
      "output": {
@@ -278,6 +287,7 @@
     "args": {
      "order_id": "A2"
     },
+    "args_key": "{\"order_id\":\"A2\"}",
     "result": {
      "ok": true,
      "output": {
@@ -303,6 +313,7 @@
      "order_id": "A2",
      "address": "9 New Ave"
     },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
     "result": {
      "ok": false,
      "error": {
@@ -325,6 +336,7 @@
      "order_id": "A2",
      "address": "9 New Ave"
     },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
     "result": {
      "ok": false,
      "error": {
@@ -337,6 +349,9 @@
      "duplicate_result"
     ],
     "result_ts": 9,
+    "duplicate_result_raw_idx": [
+     9
+    ],
     "i": 4
    },
    {
@@ -368,6 +383,7 @@
      "order_id": "A2",
      "address": "9 New Ave"
     },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
     "result": null,
     "status": "missing_result",
     "flags": [
@@ -391,5 +407,269 @@
    }
   ],
   "state_diff": []
+ },
+ {
+  "run_id": "run-audit-cases",
+  "task_id": "T1",
+  "model": "scripted-c",
+  "termination": "final",
+  "success": true,
+  "n_steps": 11,
+  "n_tool_calls": 6,
+  "n_tool_errors": 1,
+  "anomalies": [
+   "ambiguous_pairing",
+   "conflicting_duplicate_result",
+   "duplicate_call_id",
+   "out_of_order_log",
+   "result_before_call",
+   "unknown_event_type"
+  ],
+  "first_failed_check": null,
+  "steps": [
+   {
+    "kind": "user",
+    "ts": 1,
+    "raw_idx": 0,
+    "text": "Note from agent \"Jerry\" <b>urgent</b> & co: change order A2 address to 9 New Ave for ana@example.com.",
+    "flags": [],
+    "i": 0
+   },
+   {
+    "kind": "tool",
+    "ts": 2,
+    "raw_idx": 1,
+    "call_id": "c1",
+    "name": "find_customer",
+    "args": {
+     "email": "ana@example.com"
+    },
+    "args_key": "{\"email\":\"ana@example.com\"}",
+    "result": {
+     "ok": true,
+     "output": {
+      "customer_id": "c1"
+     }
+    },
+    "status": "ok",
+    "flags": [],
+    "result_ts": 3,
+    "i": 1
+   },
+   {
+    "kind": "tool",
+    "ts": 4,
+    "raw_idx": 3,
+    "call_id": "c2",
+    "name": "verify_identity",
+    "args": {
+     "last4": "1234",
+     "customer_id": "c1"
+    },
+    "args_key": "{\"customer_id\":\"c1\",\"last4\":\"1234\"}",
+    "result": {
+     "ok": true,
+     "output": {
+      "verified": true
+     }
+    },
+    "status": "ok",
+    "flags": [],
+    "result_ts": 5,
+    "i": 2
+   },
+   {
+    "kind": "tool",
+    "ts": 7,
+    "raw_idx": 5,
+    "call_id": "c3",
+    "name": "get_order",
+    "args": {
+     "order_id": "A2"
+    },
+    "args_key": "{\"order_id\":\"A2\"}",
+    "result": {
+     "ok": true,
+     "output": {
+      "order_id": "A2",
+      "address": "1 Old St"
+     }
+    },
+    "status": "ok",
+    "flags": [
+     "result_before_call"
+    ],
+    "result_ts": 6,
+    "i": 3
+   },
+   {
+    "kind": "tool",
+    "ts": 8,
+    "raw_idx": 7,
+    "call_id": "c4",
+    "name": "update_address",
+    "args": {
+     "order_id": "A2",
+     "address": "9 New Ave"
+    },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
+    "result": null,
+    "status": "ambiguous_pairing",
+    "flags": [
+     "duplicate_call_id",
+     "ambiguous_pairing"
+    ],
+    "i": 4
+   },
+   {
+    "kind": "tool",
+    "ts": 9,
+    "raw_idx": 8,
+    "call_id": "c4",
+    "name": "update_address",
+    "args": {
+     "order_id": "A2",
+     "address": "9 New Ave"
+    },
+    "args_key": "{\"address\":\"9 New Ave\",\"order_id\":\"A2\"}",
+    "result": null,
+    "status": "ambiguous_pairing",
+    "flags": [
+     "duplicate_call_id",
+     "ambiguous_pairing"
+    ],
+    "i": 5
+   },
+   {
+    "kind": "ambiguous_result",
+    "ts": 10,
+    "raw_idx": 9,
+    "call_id": "c4",
+    "result": {
+     "ts": 10,
+     "type": "tool_result",
+     "call_id": "c4",
+     "ok": false,
+     "error": {
+      "code": "unavailable",
+      "message": "503"
+     }
+    },
+    "flags": [
+     "ambiguous_pairing"
+    ],
+    "i": 6
+   },
+   {
+    "kind": "ambiguous_result",
+    "ts": 11,
+    "raw_idx": 10,
+    "call_id": "c4",
+    "result": {
+     "ts": 11,
+     "type": "tool_result",
+     "call_id": "c4",
+     "ok": true,
+     "output": {
+      "updated": true
+     }
+    },
+    "flags": [
+     "ambiguous_pairing"
+    ],
+    "i": 7
+   },
+   {
+    "kind": "unknown",
+    "ts": 12,
+    "raw_idx": 11,
+    "event": {
+     "ts": 12,
+     "type": "heartbeat",
+     "note": "keepalive"
+    },
+    "flags": [
+     "unknown_event_type"
+    ],
+    "i": 8
+   },
+   {
+    "kind": "tool",
+    "ts": 13,
+    "raw_idx": 12,
+    "call_id": "c5",
+    "name": "get_order",
+    "args": {
+     "order_id": "A2"
+    },
+    "args_key": "{\"order_id\":\"A2\"}",
+    "result": {
+     "ok": true,
+     "output": {
+      "order_id": "A2",
+      "address": "9 New Ave"
+     }
+    },
+    "status": "ok",
+    "flags": [
+     "conflicting_duplicate_result"
+    ],
+    "result_ts": 14,
+    "extra_results": [
+     {
+      "raw_idx": 14,
+      "ts": 15,
+      "ok": true,
+      "output": {
+       "order_id": "A2",
+       "address": "1 Old St"
+      }
+     }
+    ],
+    "i": 9
+   },
+   {
+    "kind": "assistant",
+    "ts": 16,
+    "raw_idx": 15,
+    "text": "Done: order A2 will ship to 9 New Ave.",
+    "flags": [],
+    "i": 10
+   }
+  ],
+  "checks": [
+   {
+    "name": "orders/A2/address == '9 New Ave'",
+    "kind": "state",
+    "passed": true,
+    "evidence": "actual='9 New Ave'"
+   },
+   {
+    "name": "no collateral change",
+    "kind": "state",
+    "passed": true,
+    "evidence": "unexpected=[]"
+   },
+   {
+    "name": "no false completion claim",
+    "kind": "output",
+    "passed": true,
+    "evidence": "goal_met=True"
+   }
+  ],
+  "state_diff": [
+   {
+    "path": "/orders/A2/address",
+    "op": "changed",
+    "before": "1 Old St",
+    "after": "9 New Ave"
+   },
+   {
+    "path": "/session/verified_customer",
+    "op": "changed",
+    "before": null,
+    "after": "c1"
+   }
+  ]
  }
 ]

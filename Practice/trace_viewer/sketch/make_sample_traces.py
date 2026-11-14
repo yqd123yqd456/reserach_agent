@@ -53,6 +53,31 @@ runs = [
   "verdict": {"success": False, "checks": [
    {"name": "orders/A2/address == '9 New Ave'", "kind": "state", "passed": False, "evidence": "actual='1 Old St'"},
    {"name": "ended by agent", "kind": "termination", "passed": False, "evidence": "budget_tool_calls"}]}},
+ # 审计（2026-11-14）#16–#21 的复现数据：结果早于调用、call id 重复、未知事件类型、内容不同的重复结果、
+ # 参数键顺序与 run-ok 不同、含 HTML 特殊字符的文本。
+ {"run_id": "run-audit-cases", "task_id": "T1", "model": "scripted-c", "termination": "final",
+  "events": [
+   ev(1, "user", text='Note from agent "Jerry" <b>urgent</b> & co: change order A2 address to 9 New Ave for ana@example.com.'),
+   ev(2, "tool_call", call_id="c1", name="find_customer", args={"email": "ana@example.com"}),
+   ev(3, "tool_result", call_id="c1", ok=True, output={"customer_id": "c1"}),
+   ev(4, "tool_call", call_id="c2", name="verify_identity", args={"last4": "1234", "customer_id": "c1"}),  # 键顺序与 run-ok 相反
+   ev(5, "tool_result", call_id="c2", ok=True, output={"verified": True}),
+   ev(7, "tool_call", call_id="c3", name="get_order", args={"order_id": "A2"}),
+   ev(6, "tool_result", call_id="c3", ok=True, output={"order_id": "A2", "address": "1 Old St"}),          # 结果的时间戳早于调用
+   ev(8, "tool_call", call_id="c4", name="update_address", args={"order_id": "A2", "address": "9 New Ave"}),
+   ev(9, "tool_call", call_id="c4", name="update_address", args={"order_id": "A2", "address": "9 New Ave"}),  # 重试时复用了 call id
+   ev(10, "tool_result", call_id="c4", ok=False, error={"code": "unavailable", "message": "503"}),
+   ev(11, "tool_result", call_id="c4", ok=True, output={"updated": True}),
+   ev(12, "heartbeat", note="keepalive"),                                                                    # 未知事件类型
+   ev(13, "tool_call", call_id="c5", name="get_order", args={"order_id": "A2"}),
+   ev(14, "tool_result", call_id="c5", ok=True, output={"order_id": "A2", "address": "9 New Ave"}),
+   ev(15, "tool_result", call_id="c5", ok=True, output={"order_id": "A2", "address": "1 Old St"}),          # 同一 call id 的第二个结果，内容不同
+   ev(16, "assistant", text="Done: order A2 will ship to 9 New Ave.")],
+  "initial_state": state(), "final_state": state("9 New Ave", "c1"),
+  "verdict": {"success": True, "checks": [
+   {"name": "orders/A2/address == '9 New Ave'", "kind": "state", "passed": True, "evidence": "actual='9 New Ave'"},
+   {"name": "no collateral change", "kind": "state", "passed": True, "evidence": "unexpected=[]"},
+   {"name": "no false completion claim", "kind": "output", "passed": True, "evidence": "goal_met=True"}]}},
 ]
 json.dump(runs, open("raw_traces.json", "w"), ensure_ascii=False, indent=1)
 print("wrote raw_traces.json with", len(runs), "runs")

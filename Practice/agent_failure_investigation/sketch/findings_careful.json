@@ -6,7 +6,7 @@
   "competing_hypotheses": ["工具说明让 agent 混淆了订单号（未见证据：指令明确写了 A2）"], "proposed_check": "同一模型在 T1 上重复 10 次，统计选错订单的比例"},
  {"finding_id": "C-2", "category": "environment", "root_cause": "orders_503", "run_ids": ["r06", "r07"], "status": "confirmed",
   "claim": "订单服务对所有写请求返回 503；agent 重试后如实告知未修改",
-  "evidence": [{"run_id": "r06", "step": 2, "quote": "503 upstream connect error"}, {"run_id": "r06", "step": "checks", "quote": "INC-17"},
+  "evidence": [{"run_id": "r06", "step": 2, "quote": "503 upstream connect error"}, {"run_id": "r06", "step": "checks", "quote": "incident INC-17"},
                {"run_id": "r07", "step": 5, "quote": "nothing was changed"}],
   "competing_hypotheses": [], "proposed_check": "这两条应记为无效 run 并在故障恢复后补跑"},
  {"finding_id": "C-3", "category": "harness", "root_cause": "tool_spec_param_mismatch", "run_ids": ["r08", "r09"], "status": "confirmed",
@@ -22,6 +22,6 @@
  {"finding_id": "C-5", "category": "grader", "root_cause": "T4_expected_string_mismatch", "run_ids": ["r12", "r13"], "status": "uncertain",
   "claim": "指令要求改成 9 New Ave，状态也确实是 9 New Ave，但检查项期望 9 New Avenue",
   "evidence": [{"run_id": "r12", "step": 0, "quote": "to 9 New Ave."}, {"run_id": "r12", "step": "checks", "quote": "A2 address == '9 New Avenue'"},
-               {"run_id": "r12", "step": "checks", "quote": "actual='9 New Ave'"}],
+               {"run_id": "r12", "step": "checks", "quote": "actual='9 New Ave'"}, {"run_id": "r13", "step": "checks", "quote": "actual='9 New Ave'"}],
   "competing_hypotheses": ["检查项的期望值写错（grader）", "指令写错、期望值才是本意（task）"], "proposed_check": "人工核对任务来源；两种情况都不是模型失败"}
 ]

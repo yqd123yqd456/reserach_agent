@@ -9,6 +9,7 @@ def summary(bpb, vram=44000.0):
 print("step 00010 (1.0%) | loss: 9.012345 | lrm: 0.10 | dt: 310ms")
 if mode == "ok": summary("0.987000")
 elif mode == "small_gain": summary("0.996800")
+elif mode == "after_keep": summary("0.990000")                           # 比初始基线好，但比已保留的 0.987 差
 elif mode == "vram_blowup": summary("0.985000", vram=79000.0)
 elif mode == "nan_metric": summary("nan")
 elif mode == "hang": time.sleep(60)

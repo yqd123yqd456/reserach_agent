@@ -12,22 +12,22 @@
    {
     "run_id": "r04",
     "step": 2,
-    "quote": "policy_blocked"
+    "quote": "\"code\": \"policy_blocked\""
    },
    {
     "run_id": "r04",
     "step": 3,
-    "quote": "Done: the order will"
+    "quote": "\"text\": \"Done: the order will ship to 9 New Ave.\""
    },
    {
     "run_id": "r05",
     "step": 2,
-    "quote": "policy_blocked"
+    "quote": "\"code\": \"policy_blocked\""
    },
    {
     "run_id": "r05",
     "step": 3,
-    "quote": "Done: the order will"
+    "quote": "\"text\": \"Done: the order will ship to 9 New Ave.\""
    }
   ],
   "status": "confirmed",
@@ -42,17 +42,27 @@
    "r06",
    "r07"
   ],
-  "claim": "写操作持续返回 unavailable；环境记录中有对应故障",
+  "claim": "调用返回 unavailable；环境记录中有对应故障",
   "evidence": [
    {
     "run_id": "r06",
     "step": 2,
-    "quote": "503 upstream connect error"
+    "quote": "\"message\": \"503 upstream connect error\""
+   },
+   {
+    "run_id": "r06",
+    "step": "checks",
+    "quote": "\"error\": \"503 for all writes (incident INC-17)\""
    },
    {
     "run_id": "r07",
     "step": 2,
-    "quote": "503 upstream connect error"
+    "quote": "\"message\": \"503 upstream connect error\""
+   },
+   {
+    "run_id": "r07",
+    "step": "checks",
+    "quote": "\"error\": \"503 for all writes (incident INC-17)\""
    }
   ],
   "status": "confirmed",
@@ -62,17 +72,17 @@
  {
   "finding_id": "H-3",
   "category": "harness",
-  "root_cause": "invalid_arguments_vs_spec",
+  "root_cause": "spec_followed_but_tool_rejected",
   "run_ids": [
    "r08",
    "r09"
   ],
-  "claim": "agent 按给它的工具说明传参，工具却拒绝该参数名",
+  "claim": "agent 传的参数名都在给它的工具说明里，工具却拒绝",
   "evidence": [
    {
     "run_id": "r08",
     "step": 2,
-    "quote": "unexpected arguments ['address']; expected ['order_id', 'new_address']"
+    "quote": "\"message\": \"unexpected arguments ['address']; expected ['order_id', 'new_address']\""
    },
    {
     "run_id": "r08",
@@ -80,18 +90,30 @@
     "quote": "\"params\": [\"order_id\", \"address\"]"
    },
    {
+    "run_id": "r08",
+    "step": 2,
+    "quote": "\"order_id\": \"A2\""
+   },
+   {
     "run_id": "r09",
     "step": 2,
-    "quote": "unexpected arguments ['address']; expected ['order_id', 'new_address']"
+    "quote": "\"message\": \"unexpected arguments ['address']; expected ['order_id', 'new_address']\""
    },
    {
     "run_id": "r09",
     "step": "checks",
     "quote": "\"params\": [\"order_id\", \"address\"]"
+   },
+   {
+    "run_id": "r09",
+    "step": 2,
+    "quote": "\"order_id\": \"A2\""
    }
   ],
   "status": "confirmed",
-  "competing_hypotheses": [],
+  "competing_hypotheses": [
+   "模型应能从错误信息恢复（次要的模型问题）"
+  ],
   "proposed_check": "修正工具说明后重跑"
  },
  {
@@ -107,12 +129,12 @@
    {
     "run_id": "r10",
     "step": "checks",
-    "quote": "actual='1 Old St'"
+    "quote": "\"evidence\": \"actual='1 Old St'\""
    },
    {
     "run_id": "r11",
     "step": "checks",
-    "quote": "actual='1 Old St'"
+    "quote": "\"evidence\": \"actual='1 Old St'\""
    }
   ],
   "status": "uncertain",
@@ -136,12 +158,12 @@
    {
     "run_id": "r12",
     "step": "checks",
-    "quote": "actual='9 New Ave'"
+    "quote": "\"evidence\": \"actual='9 New Ave'\""
    },
    {
     "run_id": "r13",
     "step": "checks",
-    "quote": "actual='9 New Ave'"
+    "quote": "\"evidence\": \"actual='9 New Ave'\""
    }
   ],
   "status": "uncertain",

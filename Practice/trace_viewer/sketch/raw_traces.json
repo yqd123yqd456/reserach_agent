@@ -414,5 +414,209 @@
     }
    ]
   }
+ },
+ {
+  "run_id": "run-audit-cases",
+  "task_id": "T1",
+  "model": "scripted-c",
+  "termination": "final",
+  "events": [
+   {
+    "ts": 1,
+    "type": "user",
+    "text": "Note from agent \"Jerry\" <b>urgent</b> & co: change order A2 address to 9 New Ave for ana@example.com."
+   },
+   {
+    "ts": 2,
+    "type": "tool_call",
+    "call_id": "c1",
+    "name": "find_customer",
+    "args": {
+     "email": "ana@example.com"
+    }
+   },
+   {
+    "ts": 3,
+    "type": "tool_result",
+    "call_id": "c1",
+    "ok": true,
+    "output": {
+     "customer_id": "c1"
+    }
+   },
+   {
+    "ts": 4,
+    "type": "tool_call",
+    "call_id": "c2",
+    "name": "verify_identity",
+    "args": {
+     "last4": "1234",
+     "customer_id": "c1"
+    }
+   },
+   {
+    "ts": 5,
+    "type": "tool_result",
+    "call_id": "c2",
+    "ok": true,
+    "output": {
+     "verified": true
+    }
+   },
+   {
+    "ts": 7,
+    "type": "tool_call",
+    "call_id": "c3",
+    "name": "get_order",
+    "args": {
+     "order_id": "A2"
+    }
+   },
+   {
+    "ts": 6,
+    "type": "tool_result",
+    "call_id": "c3",
+    "ok": true,
+    "output": {
+     "order_id": "A2",
+     "address": "1 Old St"
+    }
+   },
+   {
+    "ts": 8,
+    "type": "tool_call",
+    "call_id": "c4",
+    "name": "update_address",
+    "args": {
+     "order_id": "A2",
+     "address": "9 New Ave"
+    }
+   },
+   {
+    "ts": 9,
+    "type": "tool_call",
+    "call_id": "c4",
+    "name": "update_address",
+    "args": {
+     "order_id": "A2",
+     "address": "9 New Ave"
+    }
+   },
+   {
+    "ts": 10,
+    "type": "tool_result",
+    "call_id": "c4",
+    "ok": false,
+    "error": {
+     "code": "unavailable",
+     "message": "503"
+    }
+   },
+   {
+    "ts": 11,
+    "type": "tool_result",
+    "call_id": "c4",
+    "ok": true,
+    "output": {
+     "updated": true
+    }
+   },
+   {
+    "ts": 12,
+    "type": "heartbeat",
+    "note": "keepalive"
+   },
+   {
+    "ts": 13,
+    "type": "tool_call",
+    "call_id": "c5",
+    "name": "get_order",
+    "args": {
+     "order_id": "A2"
+    }
+   },
+   {
+    "ts": 14,
+    "type": "tool_result",
+    "call_id": "c5",
+    "ok": true,
+    "output": {
+     "order_id": "A2",
+     "address": "9 New Ave"
+    }
+   },
+   {
+    "ts": 15,
+    "type": "tool_result",
+    "call_id": "c5",
+    "ok": true,
+    "output": {
+     "order_id": "A2",
+     "address": "1 Old St"
+    }
+   },
+   {
+    "ts": 16,
+    "type": "assistant",
+    "text": "Done: order A2 will ship to 9 New Ave."
+   }
+  ],
+  "initial_state": {
+   "orders": {
+    "A2": {
+     "customer": "c1",
+     "status": "processing",
+     "address": "1 Old St"
+    },
+    "B1": {
+     "customer": "c2",
+     "status": "processing",
+     "address": "7 Elm Rd"
+    }
+   },
+   "session": {
+    "verified_customer": null
+   }
+  },
+  "final_state": {
+   "orders": {
+    "A2": {
+     "customer": "c1",
+     "status": "processing",
+     "address": "9 New Ave"
+    },
+    "B1": {
+     "customer": "c2",
+     "status": "processing",
+     "address": "7 Elm Rd"
+    }
+   },
+   "session": {
+    "verified_customer": "c1"
+   }
+  },
+  "verdict": {
+   "success": true,
+   "checks": [
+    {
+     "name": "orders/A2/address == '9 New Ave'",
+     "kind": "state",
+     "passed": true,
+     "evidence": "actual='9 New Ave'"
+    },
+    {
+     "name": "no collateral change",
+     "kind": "state",
+     "passed": true,
+     "evidence": "unexpected=[]"
+    },
+    {
+     "name": "no false completion claim",
+     "kind": "output",
+     "passed": true,
+     "evidence": "goal_met=True"
+    }
+   ]
+  }
  }
 ]

@@ -104,25 +104,31 @@ autoresearch 用固定的 5 分钟墙钟预算，所以“效率改善”与“�
 |---|---|
 | 原问题 | 结局的判断完全靠 agent 读日志；崩溃记为 `0.000000`；超时靠 agent 自己掐表；OOM、NaN、普通 bug 在结果表里都叫 `crash`，无法统计也无法区别对待 |
 | 代码落点 | 新增一个 runner，包住“运行一次实验”（`program.md` 循环的第 4–6 步）；可选地在 `train.py` L569–L572 把 `print("FAIL"); exit(1)` 换成带类型的状态，并在 L613 之后检查 `val_bpb` 是否有限 |
-| 接口变化 | `run(cmd, timeout_s, log_path) → (returncode, timed_out, wall_seconds)`；`classify(log, returncode, timed_out, metrics) → (status, reason)`，状态取 `ok`、`timeout`、`oom`、`nan_loss`、`crash`、`interrupted`、`no_metric`、`invalid_metric` |
+| 接口变化 | `run(cmd, timeout_s, log_path) → (returncode, timed_out, wall_seconds)`，进程无法启动时 `returncode` 为 `None`、不抛异常；`classify(log, returncode, timed_out, metrics) → (status, reason, warnings)`，状态取 `ok`、`timeout`、`oom`、`nan_loss`、`crash`、`interrupted`、`no_metric`、`incomplete_summary`、`invalid_metric`、`launch_error` |
+| 分类优先级 | 启动失败 → 超时 → 退出码为 0 且摘要块完整、数值有限（`ok`；日志里的 OOM／KeyboardInterrupt 文本只记入 `warnings`）→ 日志文本线索（只在退出码非 0 或摘要里没有 `val_bpb` 时使用）→ 摘要缺键（`incomplete_summary`）或数值无效（`invalid_metric`）。摘要块指最后一个“整行恰为 `---`”之后的内容，六个键（`val_bpb`、`training_seconds`、`total_seconds`、`peak_vram_mb`、`num_steps`、`num_params_M`）必须齐全 |
 | 反例（应被正确识别） | 进程挂起；日志里有 out-of-memory；打印 `FAIL`；摘要块里 `val_bpb: nan`；正常退出但没有摘要块；被 Ctrl-C |
 | 对照 | 原流程下，草图的 9 种结局中有 5 种（NaN、OOM、普通崩溃、被打断、超时）在结果表里是同一个 `crash`；`val_bpb: nan` 会被 `grep` 读成一个“结果” |
 | 验收 | 每种结局一个测试；超时后没有残留进程（杀进程组）；失败的记录里**没有**指标值 |
 | 恢复策略（只定义，不自动改代码） | `oom` → 提示降低 batch 或模型规模后重试一次；`timeout` → 不重试；`nan_loss` → 不重试，记录；`interrupted` → 不记为实验结果 |
 
-草图的实际输出：
+草图的实际输出（2026-11-14 修正后重新运行）。`best=` 是这次比较所用的当前最优值，保留之后会更新；最后四行是不写入 `results.jsonl` 的反例：
 
 ```text
-ok           status=ok              decision=keep     bpb=0.987   | gain +0.0109 >= noise threshold 0.002
-small_gain   status=ok              decision=discard  bpb=0.9968  | gain +0.0011 within noise threshold 0.002
-vram_blowup  status=ok              decision=discard  bpb=0.985   | peak_vram_mb 79000.0 > cap 48000.0
-nan_metric   status=invalid_metric  decision=crash    bpb=-       | invalid_metric
-nan_loss     status=nan_loss        decision=crash    bpb=-       | nan_loss
-oom          status=oom             decision=crash    bpb=-       | oom
-crash        status=crash           decision=crash    bpb=-       | crash
-interrupt    status=interrupted     decision=crash    bpb=-       | interrupted
-hang         status=timeout         decision=crash    bpb=-       | timeout
-tampered protected file -> ('invalid', "protected files changed: ['fake_train.py']")
+small_gain   status=ok              decision=discard  bpb=0.9968  best=0.9979  | gain +0.0011 within noise threshold 0.002
+ok           status=ok              decision=keep     bpb=0.987   best=0.9979  | gain +0.0109 >= noise threshold 0.002
+after_keep   status=ok              decision=discard  bpb=0.99    best=0.987   | no improvement (gain -0.0030)
+vram_blowup  status=ok              decision=discard  bpb=0.985   best=0.987   | peak_vram_mb 79000.0 > cap 48000.0
+nan_metric   status=invalid_metric  decision=crash    bpb=-       best=0.987   | invalid_metric
+nan_loss     status=nan_loss        decision=crash    bpb=-       best=0.987   | nan_loss
+oom          status=oom             decision=crash    bpb=-       best=0.987   | oom
+crash        status=crash           decision=crash    bpb=-       best=0.987   | crash
+interrupt    status=interrupted     decision=crash    bpb=-       best=0.987   | interrupted
+hang         status=timeout         decision=crash    bpb=-       best=0.987   | timeout
+tampered protected file -> ('invalid', "protected files differ from baseline after the run: ['fake_train.py']")
+record without peak_vram_mb -> ('invalid', 'peak_vram_mb is not a finite number: None')
+misspelled protected file -> FileNotFoundError: protected files missing at setup: ['prepare.pyy']
+missing executable -> status=launch_error | launch failed: FileNotFoundError: [Errno 2] No such file or directory: './no_such_trainer'
+records: 10; ok: 4; kept: 1; final best val_bpb: 0.987
 ```
 
 ### B. 实验记录与可复现性
@@ -131,7 +137,7 @@ tampered protected file -> ('invalid', "protected files changed: ['fake_train.py
 |---|---|
 | 原问题 | 结果由 agent 手工抄进一个不受版本控制的 TSV；被丢弃实验的代码只在 reflog 里；记录里没有预算、步数、硬件、失败原因；`train.py` 自己报告自己的指标 |
 | 代码落点 | runner 在每次运行后写一条 JSON 记录（追加到 `results.jsonl`）；指标由 runner 从日志的摘要块解析，不由 agent 转抄；`train.py` L615–L630 处所有字段都已在作用域内，也可以直接在那里输出 JSON |
-| 接口变化 | 记录字段：`run_id`、`commit`、`parent_commit`、`description`、`cmd`、`status`、`status_reason`、`returncode`、`metrics`、`budget`、`wall_seconds`、`log_path`、`protected_hashes`、`decision`、`decision_reason` |
+| 接口变化 | 记录字段：`run_id`、`commit`、`parent_commit`、`description`、`cmd`、`status`、`status_reason`、`returncode`、`metrics`、`budget`、`wall_seconds`、`log_path`、`protected_hashes`（含 `before` 与 `after` 两组）、`warnings`、`decision`、`decision_reason`；`demo.py` 另外写入 `best_bpb_before`（做决定时所比较的最优值） |
 | 反例 | 失败的 run 不应带任何指标值；被丢弃的实验必须仍有记录与可取回的 commit（例如打一个 tag 或推到归档分支，而不是只留在 reflog） |
 | 对照 | 用原流程与新流程各记录同一组运行，检查：能否从记录还原“哪个 commit、什么预算、什么结局、为什么保留或丢弃” |
 | 验收 | 从一条记录出发能找到代码版本与日志；`analysis.ipynb` 式的分析改读 JSONL 后，崩溃不再以 0 出现在数值列里 |
@@ -143,7 +149,8 @@ tampered protected file -> ('invalid', "protected files changed: ['fake_train.py
 | 原问题 | 只有一个验证 shard、一次运行、一个种子；任何改进都保留；评估由被测代码自己执行；没有资源或完整性约束 |
 | 代码落点 | 保留决定（`program.md` L103–L104）移到 runner 的 `decide()`；独立评估需要改 `prepare.py`（增加第二个保留 shard、固定评估 batch 大小）或新增一个评估进程：`train.py` 在 L613 之后保存 checkpoint，评估进程加载它、**自己从 logits 计算 loss**，而不是调用被测模型自带的 loss |
 | 接口变化 | `decide(record, best_bpb, noise, vram_cap_mb, protected_hashes) → (decision, reason)`；决定取 `keep`、`discard`、`crash`、`invalid` |
-| 规则 | 运行成功；受保护文件（`prepare.py`、缓存中的分词器与验证数据）哈希未变；显存不超过上限；改进幅度**不小于噪声阈值** |
+| 规则 | 运行成功；受保护文件（`prepare.py`、缓存中的分词器与验证数据）在运行前与运行后的哈希都等于基线，基线哈希缺失（文件不存在）即判 `invalid`；`val_bpb` 与 `peak_vram_mb` 必须是有限数值，缺失、NaN、非数值一律判 `invalid`，不默认放行；显存不超过上限；改进幅度**不小于噪声阈值**；保留之后最优值更新，后续实验与新的最优值比较 |
+| 仍检测不到的 | 在“运行前取哈希”之后改动、“运行后取哈希”之前改回的文件；不在受保护清单里的文件；训练中途恰好打印了 `---` 加全部六个键的日志。要堵住第一条，需要只读挂载或让评估在独立的检出目录里进行，草图没有做 |
 | 噪声阈值从哪来 | 同一个 commit 重复运行若干次，取 `val_bpb` 的波动范围。草图里的 0.002 是**假设值**，没有任何实测依据 |
 | 反例 | 改进小于噪声的应被丢弃；显存翻倍换来的改进应被拒绝；`prepare.py` 被改动的 run 应判为无效 |
 | 对照 | 在同一串历史实验上，比较“任何改进都保留”与“超过噪声才保留”两种规则下最终保留的集合；再用第二个保留 shard 评估两个最终模型 |

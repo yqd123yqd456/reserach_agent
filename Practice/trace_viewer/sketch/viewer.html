@@ -25,14 +25,14 @@
   mark { background:var(--warn); color:#000; }
   table { border-collapse:collapse; width:100%; font-size:12px; } td, th { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top; }
   .cols { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .cols > div { min-width:0; }
-  .row { overflow-wrap:anywhere; }
+  .row { overflow-wrap:anywhere; } .row.ro { cursor:default; }
 </style>
 </head>
 <body>
 <header>
   <h1>Trace Viewer 草图</h1>
   <label>筛选 <select id="filter"><option value="all">全部</option><option value="failed">失败</option><option value="anomaly">日志异常</option></select></label>
-  <label>搜索 <input id="query" placeholder="工具名、参数、错误码…"></label>
+  <label>搜索 <input id="query" placeholder="工具名、参数值、错误码、检查项…"></label>
   <label>对比 <select id="compare"><option value="">（不对比）</option></select></label>
   <span id="count" class="muted"></span>
 </header>
@@ -47,17 +47,44 @@
 const state = { filter: "all", query: "", runId: null, stepIdx: null, compareId: "" };
 const RUNS = window.TRACE_DATA || [];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const hi = s => { const t = esc(s), q = state.query.trim(); if (!q) return t;
-  return t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), m => `<mark>${m}</mark>`); };
-const stepText = s => JSON.stringify(s).toLowerCase();
+// 查询 → 正则（元字符已转义）。筛选与高亮用同一个正则，保证“命中”的定义只有一处。
+const matcher = () => { const q = state.query.trim(); return q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : null; };
+// 高亮在**原始文本**上做：按命中切开 → 每一段各自转义 → 命中段包 <mark>。先转义再替换会在 &quot; 这类实体内部命中。
+// enc：每一段在转义前的显示编码（显示 JSON 字符串时用，见 jsonPiece）。
+function hi(s, enc = x => x) {
+  s = String(s); const re = matcher(); if (!re) return esc(enc(s));
+  let out = "", last = 0, m;
+  while ((m = re.exec(s))) { out += esc(enc(s.slice(last, m.index))) + `<mark>${esc(enc(m[0]))}</mark>`; last = m.index + m[0].length; }
+  return out + esc(enc(s.slice(last)));
+}
+const jsonPiece = x => JSON.stringify(x).slice(1, -1);          // 字符串内部的 JSON 转义（\" \n 等），不含两端引号
+const NO_SEARCH = new Set(["args_key"]);                        // 派生字段：内容里有键名，不参与搜索与高亮
+// 把值显示成 JSON，但只高亮**值**：键名只转义。pretty 时的排版与 JSON.stringify(v, null, 1) 相同。
+function hiJson(v, pretty, depth = 0, key) {
+  if (typeof v === "string") return NO_SEARCH.has(key) ? esc(JSON.stringify(v)) : `"${hi(v, jsonPiece)}"`;
+  if (v === null || typeof v !== "object") return v === null ? "null" : hi(v);
+  const arr = Array.isArray(v), nl = pretty ? "\n" + " ".repeat(depth + 1) : "", end = pretty ? "\n" + " ".repeat(depth) : "";
+  const items = arr ? v.map(x => hiJson(x, pretty, depth + 1))
+    : Object.keys(v).map(k => esc(JSON.stringify(k)) + (pretty ? ": " : ":") + hiJson(v[k], pretty, depth + 1, k));
+  return items.length ? (arr ? "[" : "{") + nl + items.join("," + nl) + end + (arr ? "]" : "}") : (arr ? "[]" : "{}");
+}
+// 搜索范围：一条 run 里所有的**值**（run 摘要、步骤、检查项名称与证据、状态变化），不含键名。
+function leaves(v, out = [], key) {
+  if (v === null || NO_SEARCH.has(key)) return out;
+  if (typeof v !== "object") out.push(String(v));
+  else if (Array.isArray(v)) v.forEach(x => leaves(x, out));
+  else Object.keys(v).forEach(k => leaves(v[k], out, k));
+  return out;
+}
+const LEAVES = new Map(RUNS.map(r => [r.run_id, leaves(r)]));   // 数据不变，只算一次
 
 // ---- 派生数据：由状态与原始数据计算，不单独保存 ----
 function visibleRuns() {
-  const q = state.query.trim().toLowerCase();
+  const re = matcher(), hit = t => { re.lastIndex = 0; return re.test(t); };
   return RUNS.filter(r => (state.filter === "all" || (state.filter === "failed" && !r.success) || (state.filter === "anomaly" && r.anomalies.length))
-    && (!q || r.steps.some(s => stepText(s).includes(q)) || r.run_id.includes(q)));
+    && (!re || LEAVES.get(r.run_id).some(hit)));
 }
-function toolSig(r) { return r.steps.filter(s => s.kind === "tool").map(s => s.name + JSON.stringify(s.args)); }
+function toolSig(r) { return r.steps.filter(s => s.kind === "tool").map(s => s.name + " " + s.args_key); }   // args_key 由 normalize.py 算好（键已排序）
 function firstDivergence(a, b) { const x = toolSig(a), y = toolSig(b);
   for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return i;
   return x.length === y.length ? null : Math.min(x.length, y.length); }
@@ -68,39 +95,44 @@ function renderRuns(list) {
     <div class="row ${r.run_id === state.runId ? "sel" : ""}" data-run="${esc(r.run_id)}">
       <b>${hi(r.run_id)}</b> <span class="badge ${r.success ? "good" : "bad"}">${r.success ? "success" : "fail"}</span>
       ${r.anomalies.length ? `<span class="badge warn">${r.anomalies.length} 日志异常</span>` : ""}
-      <div class="muted">${esc(r.model)} · ${esc(r.termination)} · ${r.n_tool_calls} 次调用，${r.n_tool_errors} 次错误</div>
-      ${r.first_failed_check ? `<div class="bad">✗ ${esc(r.first_failed_check)}</div>` : ""}
+      <div class="muted">${hi(r.model)} · ${hi(r.termination)} · ${r.n_tool_calls} 次调用，${r.n_tool_errors} 次错误</div>
+      ${r.first_failed_check ? `<div class="bad">✗ ${hi(r.first_failed_check)}</div>` : ""}
     </div>`).join("") : `<p class="muted">没有匹配的 run</p>`);
 }
-function stepRow(s, selected, diverge) {
-  const badges = (s.flags || []).map(f => `<span class="badge warn">${esc(f)}</span>`).join("");
+const resultSummary = r => r.ok ? `ok ${hiJson(r.output)}` : r.error ? `error ${hi(r.error.code)}: ${hi(r.error.message)}` : "error";
+// selectable 为假（对比模式的右栏）时不输出 data-step：点击处理只认 data-step，所以右栏不可选。
+function stepRow(s, selected, diverge, selectable) {
+  const badges = (s.flags || []).map(f => `<span class="badge warn">${hi(f)}</span>`).join("");
   let head;
   if (s.kind === "tool") {
     const st = s.status === "ok" ? "good" : s.status === "error" ? "bad" : "warn";
     const err = s.result && s.result.error ? ` — ${hi(s.result.error.code)}: ${hi(s.result.error.message)}` : "";
-    head = `<b>${hi(s.name)}</b>(${hi(JSON.stringify(s.args))}) <span class="badge ${st}">${esc(s.status)}</span>${err}`;
-  } else if (s.kind === "orphan_result") head = `<b>孤儿结果</b> call_id=${esc(s.call_id)}`;
+    head = `<b>${hi(s.name)}</b>(${hiJson(s.args)}) <span class="badge ${st}">${hi(s.status)}</span>${err}`;
+  } else if (s.kind === "orphan_result") head = `<b>孤儿结果</b> call_id=${hi(s.call_id)} ${resultSummary(s.result)}`;
+  else if (s.kind === "ambiguous_result") head = `<b>归属不明的结果</b> call_id=${hi(s.call_id)} ${resultSummary(s.result)}`;
+  else if (s.kind === "unknown") head = `<b>未识别的事件</b> type=${hi(s.event.type)}`;
   else head = `<span class="muted">${esc(s.kind)}</span> ${hi(s.text.length > 90 ? s.text.slice(0, 90) + "…" : s.text)}`;
-  return `<div class="row ${selected ? "sel" : ""} ${diverge ? "diverge" : ""}" data-step="${s.i}"><span class="muted">#${s.i}</span> ${head}${badges}</div>`;
+  return `<div class="row ${selected ? "sel" : ""} ${diverge ? "diverge" : ""} ${selectable ? "" : "ro"}"${selectable ? ` data-step="${s.i}"` : ""}><span class="muted">#${s.i}</span> ${head}${badges}</div>`;
 }
 function renderTimeline(run, other) {
   if (!run) return `<h2>Timeline</h2><p class="muted">在左侧选一个 run</p>`;
   const div = other ? firstDivergence(run, other) : null;
   const col = (r, selectable) => { let t = -1; return r.steps.map(s => { if (s.kind === "tool") t++;
-    return stepRow(s, selectable && s.i === state.stepIdx, div !== null && s.kind === "tool" && t === div); }).join(""); };
+    return stepRow(s, selectable && s.i === state.stepIdx, div !== null && s.kind === "tool" && t === div, selectable); }).join(""); };
   if (!other) return `<h2>Timeline · ${esc(run.run_id)}</h2>` + col(run, true);
   return `<h2>对比（黄色边 = 工具调用序列第一次不同，位置 ${div === null ? "无" : div}）</h2>
-    <div class="cols"><div><b>${esc(run.run_id)}</b>${col(run, true)}</div><div><b>${esc(other.run_id)}</b>${col(other, false)}</div></div>`;
+    <div class="cols"><div><b>${esc(run.run_id)}</b>${col(run, true)}</div><div><b>${esc(other.run_id)}</b> <span class="muted">（只读）</span>${col(other, false)}</div></div>`;
 }
 function renderDetail(run) {
   if (!run) return `<h2>Detail</h2>`;
   const s = run.steps.find(x => x.i === state.stepIdx);
-  const checks = run.checks.map(c => `<tr><td class="${c.passed ? "good" : "bad"}">${c.passed ? "PASS" : "FAIL"}</td><td>${esc(c.kind)}</td><td>${esc(c.name)}<div class="muted">${esc(c.evidence)}</div></td></tr>`).join("");
-  const diff = run.state_diff.length ? run.state_diff.map(d => `<tr><td>${esc(d.path)}</td><td>${esc(JSON.stringify(d.before))}</td><td>${esc(JSON.stringify(d.after))}</td></tr>`).join("")
+  const checks = run.checks.map(c => `<tr><td class="${c.passed ? "good" : "bad"}">${c.passed ? "PASS" : "FAIL"}</td><td>${hi(c.kind)}</td><td>${hi(c.name)}<div class="muted">${hi(c.evidence)}</div></td></tr>`).join("");
+  const side = (d, k) => k in d ? hiJson(d[k]) : `<span class="muted">（无此键）</span>`;   // 键不存在 ≠ 值为 null
+  const diff = run.state_diff.length ? run.state_diff.map(d => `<tr><td>${hi(d.path)}</td><td>${side(d, "before")}</td><td>${side(d, "after")}</td></tr>`).join("")
     : `<tr><td colspan="3" class="muted">初始与最终状态相同</td></tr>`;
   return `<h2>评分证据</h2><table>${checks}</table>
     <h2 style="margin-top:14px">状态变化（初始 → 最终）</h2><table><tr><th>路径</th><th>前</th><th>后</th></tr>${diff}</table>
-    <h2 style="margin-top:14px">选中的步骤</h2>${s ? `<pre>${hi(JSON.stringify(s, null, 1))}</pre>` : `<p class="muted">点击时间线中的一步</p>`}`;
+    <h2 style="margin-top:14px">选中的步骤</h2>${s ? `<pre>${hiJson(s, true)}</pre>` : `<p class="muted">点击时间线中的一步</p>`}`;
 }
 function render() {
   const list = visibleRuns();
