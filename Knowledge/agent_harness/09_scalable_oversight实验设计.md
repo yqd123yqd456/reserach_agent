@@ -5,7 +5,7 @@
 > 2. “judge 更准”与“模型更会说服 judge”必须分开测：分别计算被分配到正确与错误立场时的说服力，或在“模型输出确实错误”的子集上计算假阳性率（Wen et al.）。
 > 3. 把强 teacher 蒸馏成小 judge **不是** scalable oversight：teacher 已经知道答案，问题恰恰是没有可信 teacher 的时候怎么办。
 >
-> 应用：[Companies/Resolution](../Companies/Resolution.md)、[Practice 分支 E](../Practice/01_岗位分支实验.md)。
+> 应用：[Companies/Resolution](../../Companies/Resolution.md)、[Practice 分支 E](../../Practice/agent_harness/01_岗位分支实验.md)。
 
 ## 1. 问题定义
 
@@ -80,7 +80,7 @@
 - “为什么 debate 可能有用？” → 复杂度类比（Irving 2018：多项式时间 judge 在最优 debate 下可判 PSPACE 问题，直接判断只到 NP）；实证上需要可验证证据（引用工具）。
 - “weak-to-strong 和 debate 的区别？” → 前者研究训练时用弱标签能否激发强模型的能力；后者研究推理／训练时用协议帮助弱 judge 判断。
 - “你的实验结果为负怎么办？” → 证伪条件预先写好；负结果说明 debate 的收益来自证据访问，这本身是有用的结论。
-- “为什么对齐？为什么 Resolution？” → 见 [Review/02 口述与自测](../Review/02_口述与自测.md)。
+- “为什么对齐？为什么 Resolution？” → 见 [Review/02 口述与自测](../../Review/agent_harness/02_口述与自测.md)。
 
 ## 来源
 

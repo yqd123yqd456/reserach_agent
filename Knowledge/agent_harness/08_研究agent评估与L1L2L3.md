@@ -2,7 +2,7 @@
 
 > 学习结论：L1（如 BPB）与 L2（研究／工程任务表现）的联系，在公开证据中是**平均意义上、基座模型之间、同域语料**的强相关；对单个任务的预测误差大，对 agentic 任务没有直接证据。L2 的评估需要处理三件事：部分进度怎样计分、人类基线和时间预算怎样设定、结果是否真的是跑出来的。L3（跨轮研发收益）目前没有成熟的公开测量方法，只能设计提案。
 >
-> L1–L2–L3 是**你的准备框架**，不是 Mirendil 的官方术语。应用：[Companies/Mirendil](../Companies/Mirendil.md)、[Practice 分支 D](../Practice/01_岗位分支实验.md)。
+> L1–L2–L3 是**你的准备框架**，不是 Mirendil 的官方术语。应用：[Companies/Mirendil](../../Companies/Mirendil.md)、[Practice 分支 D](../../Practice/agent_harness/01_岗位分支实验.md)。
 
 ## 1. 定义
 

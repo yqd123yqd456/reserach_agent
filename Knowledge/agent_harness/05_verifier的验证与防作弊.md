@@ -39,7 +39,7 @@ ABC 评估的 10 个 benchmark 中，7 个违反任务效度，7 个违反结果
 | oracle 解 | 证明任务可解且 verifier 接受正确解 | Terminal-Bench CI 要求 oracle 通过；AppWorld 每个任务有程序化验证解；ABC T.7–T.9 |
 | no-op agent | 证明“什么都不做”不会通过 | Terminal-Bench CI 要求无操作 agent 失败；AppWorld 为每个测试标注无操作时失败／通过；τ² 检查“在应用全部解法前任务未被解决” |
 | 等价正确解 | 防误拒 | 手写 2–3 个不同路径／格式的正确结果 |
-| 错误变体 | 防误收 | 每个检查项至少一个只违反这一项的变体（见 [Practice/00 §3.4](../Practice/00_共用harness规格.md#34-l1-验收必须全部通过才进入-l2)） |
+| 错误变体 | 防误收 | 每个检查项至少一个只违反这一项的变体（见 [Practice/00 §3.4](../../Practice/agent_harness/00_共用harness规格.md#34-l1-验收必须全部通过才进入-l2)） |
 | 平凡 agent | 报告下限 | ABC R.13：报告平凡 agent 的结果 |
 | 对抗性作弊 agent | 找捷径 | Terminal-Bench 用一个被指示作弊的 OpenHands agent，发现了 monkey-patch 测试、猜测、枚举全部答案等漏洞；每个任务约 3 小时人工审查，229 个投稿任务最终保留 89 个 |
 | 人类一致性 | 校准 judge | APEX-Agents 报告 judge 在 747 个人工标签上 98.5% 准确（Mercor 自报）；PaperBench 的 JudgeEval 报告 F1 |

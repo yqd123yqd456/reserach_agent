@@ -2,7 +2,7 @@
 
 > 状态：**设计提案，未实现，未运行**。本文给出数据 schema、模块边界、最小样例和验收检查。代码片段是规格级示意，不是已测试的实现。
 > 用途：一个小项目同时支撑五个岗位的讨论；岗位分支实验见 [01_岗位分支实验.md](01_岗位分支实验.md)。
-> 概念解释的主位置在 [Knowledge/01](../Knowledge/01_三种harness与最小对象模型.md)、[Knowledge/02](../Knowledge/02_工具使用测量与过程约束.md)、[Knowledge/03](../Knowledge/03_故障注入与恢复.md)。
+> 概念解释的主位置在 [Knowledge/01](../../Knowledge/agent_harness/01_三种harness与最小对象模型.md)、[Knowledge/02](../../Knowledge/agent_harness/02_工具使用测量与过程约束.md)、[Knowledge/03](../../Knowledge/agent_harness/03_故障注入与恢复.md)。
 
 ## 0. 设计目标与刻意不做的事
 
@@ -213,7 +213,7 @@ else: termination = "max_steps"
 ### 4.3 L2 验收
 
 - 同一 task 用真实模型跑 k 次（例如 k=5），trace 完整，`termination` 分布可报告。
-- 至少找到一次真实失败并按 [Knowledge/04](../Knowledge/04_失败诊断与受控重跑.md) 的流程写出诊断。
+- 至少找到一次真实失败并按 [Knowledge/04](../../Knowledge/agent_harness/04_失败诊断与受控重跑.md) 的流程写出诊断。
 - 记录每次 run 的 token 与工具调用数，作为成本基线。
 
 **预计投入**：最短 3h／标准 6h／深入 10h。**成本**：k=5、3 任务、每 run 约 10 步，量级是几百次模型调用；具体花费取决于模型与上下文长度，运行前先估算，不默认消耗付费 API。
@@ -226,7 +226,7 @@ else: termination = "max_steps"
 
 - 加入 `workspace` 环境：文件（文本）、表格（行列）、`write_report(path, content)`。任务示例：“根据 sales.csv 计算 Q3 各区域总额，更新 summary 表，并写一段说明到 report.md”。verifier 检查：表格数值（容差内）、report 中提到的数字与表格一致、未修改 sales.csv（附带损害）。
 - 每个环境 6–10 个任务，覆盖 do／refuse／ambiguous，按 `family` 分层，`dev`/`test` 分开。
-- 故障注入：按 [Knowledge/03](../Knowledge/03_故障注入与恢复.md) 定义 `FaultSpec`（transient、invalid-arg、stale-read、permanent），每个 faulted task 有一个配对的 clean control。
+- 故障注入：按 [Knowledge/03](../../Knowledge/agent_harness/03_故障注入与恢复.md) 定义 `FaultSpec`（transient、invalid-arg、stale-read、permanent），每个 faulted task 有一个配对的 clean control。
 
 ### 5.2 比较报告（report.py 输出的最小内容）
 
@@ -240,7 +240,7 @@ pass^5 (all 5 runs succeed): A 6/16, B 8/16
 cost: median tool_calls A 7, B 9
 ```
 
-上面的数字是**格式示意，不是结果**。统计单位是任务；同一任务的重复 run 先在任务内平均，再在任务间做配对比较（见 [Knowledge/06](../Knowledge/06_公平比较与统计.md)）。
+上面的数字是**格式示意，不是结果**。统计单位是任务；同一任务的重复 run 先在任务内平均，再在任务间做配对比较（见 [Knowledge/06](../../Knowledge/agent_harness/06_公平比较与统计.md)）。
 
 ### 5.3 代码任务与执行隔离（可选，进入 L4 前）
 

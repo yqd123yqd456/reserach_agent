@@ -5,7 +5,7 @@
 > 2. GRPO 类算法只从“同一 prompt 的多次采样之间的分数差异”中学习。全对或全错的组没有梯度，所以 verifier 的难度校准就是 reward 设计的一部分。
 > 3. 证明“选出的数据提升了模型”需要：随机选择对照、随机／格式 reward 对照、跨模型族、与筛选信号不同的保留评估，以及对作弊式通过的单独计数。
 >
-> 先修：[05 verifier 验证](05_verifier的验证与防作弊.md)、[06 公平比较](06_公平比较与统计.md)。应用：[Mercor Post-training RE](../Companies/Mercor.md#1-post-training-re)、[Practice 分支 C](../Practice/01_岗位分支实验.md)。
+> 先修：[05 verifier 验证](05_verifier的验证与防作弊.md)、[06 公平比较](06_公平比较与统计.md)。应用：[Mercor Post-training RE](../../Companies/Mercor.md#1-post-training-re)、[Practice 分支 C](../../Practice/agent_harness/01_岗位分支实验.md)。
 
 ## 1. 机制：GRPO 的 advantage 从哪里来
 

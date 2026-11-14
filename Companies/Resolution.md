@@ -27,10 +27,10 @@
 
 | 要讲清的 | 依据 | 材料 |
 |---|---|---|
-| 研究身份（一句话） | 你以生产 LLM／agent 评估为核心，关注“评估信号是否足够可信到能指导改进” | [Review/02 Resolution](../Review/02_口述与自测.md#resolution) |
+| 研究身份（一句话） | 你以生产 LLM／agent 评估为核心，关注“评估信号是否足够可信到能指导改进” | [Review/02 Resolution](../Review/agent_harness/02_口述与自测.md#resolution) |
 | why alignment | 必须是你自己的真实动机；从你的工作中长出来的问题：judge 不可靠时，优化会放大它的错误 | 同上 |
 | why Resolution | 理论 + 实证 + 自动化的组合；debate 的可达性问题（launch 文章原句） | 本页第 2 节 |
-| 两个可检验的研究问题 | 见下 | [Knowledge/09 §4](../Knowledge/09_scalable_oversight实验设计.md#4-三个可证伪的小实验提案未运行) |
+| 两个可检验的研究问题 | 见下 | [Knowledge/09 §4](../Knowledge/agent_harness/09_scalable_oversight实验设计.md#4-三个可证伪的小实验提案未运行) |
 | 怎样设计区分竞争解释的实验 | 固定监督预算；证据访问 vs debate；说服 vs 正确 | 同上 |
 
 **两个候选问题**（提案，不是已有成果）：
@@ -41,8 +41,8 @@
 
 | JD 要求 | 你的真实证据 | 缺口 | 练习 | 可能追问 |
 |---|---|---|---|---|
-| 把对齐问题变成具体实证研究 | judge 可靠性、标签噪声、teacher–student、实验设计、因果推断背景 | 没有 scalable oversight 实验；没有公开论文 | [Knowledge/09](../Knowledge/09_scalable_oversight实验设计.md)；[Practice 分支 E](../Practice/01_岗位分支实验.md) | “你的实验结果为负怎么办？”“这个结论能推广到更强模型吗？” |
-| 能讲清为什么这个方向值得做 | 生产评估中 proxy 与 outcome 的差距 | 把个人经验连到对齐动机 | [Review/02](../Review/02_口述与自测.md#resolution) | “为什么不继续做产品评估？” |
+| 把对齐问题变成具体实证研究 | judge 可靠性、标签噪声、teacher–student、实验设计、因果推断背景 | 没有 scalable oversight 实验；没有公开论文 | [Knowledge/09](../Knowledge/agent_harness/09_scalable_oversight实验设计.md)；[Practice 分支 E](../Practice/agent_harness/01_岗位分支实验.md) | “你的实验结果为负怎么办？”“这个结论能推广到更强模型吗？” |
+| 能讲清为什么这个方向值得做 | 生产评估中 proxy 与 outcome 的差距 | 把个人经验连到对齐动机 | [Review/02](../Review/agent_harness/02_口述与自测.md#resolution) | “为什么不继续做产品评估？” |
 | debate／PVG／RLHF 实证经验 | 与 modeling partners 的偏好数据与 DPO-style 实验 | 没有 debate 或 PVG 实操 | 精读 Khan、Kenton、Wen | “Khan 和 Kenton 的结论为什么不一致？” |
 | 数学与理论背景 | 数学与经济学本科、因果推断 | 复杂性理论、博弈论 | Irving 2018 的复杂度类比；launch 文章的均衡可达性问题 | “debate 的理论保证需要什么假设？” |
 | PhD 或同等经验 | 无 PhD；三篇微软内部技术论文、共同发明的待批专利、组织级 hackathon 获奖 | 公开研究记录 | 如实陈述；内部论文不等于公开顶会论文 | “你最好的一项研究是什么？” |
@@ -52,7 +52,7 @@
 ## 5. 后续轮次的提前准备（等第一轮结果，不提前大量投入）
 
 - 4 小时 work test：练习在 4 小时内完成一个小型、可证伪的实验（问题 → 设计 → 运行 → 结论 → 局限）。
-- Experience interview：用 [Knowledge/09 §5](../Knowledge/09_scalable_oversight实验设计.md#5-从你的经历搭桥不夸大) 的桥梁表讲过往研究。
+- Experience interview：用 [Knowledge/09 §5](../Knowledge/agent_harness/09_scalable_oversight实验设计.md#5-从你的经历搭桥不夸大) 的桥梁表讲过往研究。
 
 ## 6. 反问
 

@@ -37,10 +37,10 @@
 
 | JD 要求 | 你的真实证据 | 缺口 | 练习 | 可能追问 |
 |---|---|---|---|---|
-| RLVR、GRPO/DAPO、reward shaping | 与 modeling partners 合作的 controlled DPO-style 实验；材料涉及 GRPO prompt selection | 能手推 GRPO advantage 与 DAPO 四项修改；讲清全对／全错组为何无梯度 | [Knowledge/07 §1–2](../Knowledge/07_从评估信号到post-training.md)；手算 G=4 例子；读 verl `agg_loss` | “为什么训练后期变慢？”“clip-higher 解决什么？”“截断样本怎么处理？” |
-| 量化数据的可用性与收益 | failure mining、preference-pair curation、回归评估 | 能给出“数据真的有用”的完整对照设计 | [07 §5](../Knowledge/07_从评估信号到post-training.md#5-怎样证明选出的数据真的提升了模型)；[Practice 分支 C](../Practice/01_岗位分支实验.md) | “怎么证明提升不是来自 judge？”“随机 reward 也涨了怎么办？” |
-| rubric、evaluator 指导训练 | SLM judge 蒸馏（约 88% held-out teacher agreement） | judge 当 reward 时的风险与监控 | [07 §3](../Knowledge/07_从评估信号到post-training.md#3-哪些信号能当-reward)、[05](../Knowledge/05_verifier的验证与防作弊.md) | “你的 judge 能直接当 reward 吗？” |
-| 环境 | 评估基础设施 | 训练环境 verifier 的构建（SWE-Gym、R2E-Gym、SWE-smith） | [07 §4](../Knowledge/07_从评估信号到post-training.md#4-训练环境里的-verifier-是怎么做的代码任务) | “执行型与执行无关 verifier 怎么组合？” |
+| RLVR、GRPO/DAPO、reward shaping | 与 modeling partners 合作的 controlled DPO-style 实验；材料涉及 GRPO prompt selection | 能手推 GRPO advantage 与 DAPO 四项修改；讲清全对／全错组为何无梯度 | [Knowledge/07 §1–2](../Knowledge/agent_harness/07_从评估信号到post-training.md)；手算 G=4 例子；读 verl `agg_loss` | “为什么训练后期变慢？”“clip-higher 解决什么？”“截断样本怎么处理？” |
+| 量化数据的可用性与收益 | failure mining、preference-pair curation、回归评估 | 能给出“数据真的有用”的完整对照设计 | [07 §5](../Knowledge/agent_harness/07_从评估信号到post-training.md#5-怎样证明选出的数据真的提升了模型)；[Practice 分支 C](../Practice/agent_harness/01_岗位分支实验.md) | “怎么证明提升不是来自 judge？”“随机 reward 也涨了怎么办？” |
+| rubric、evaluator 指导训练 | SLM judge 蒸馏（约 88% held-out teacher agreement） | judge 当 reward 时的风险与监控 | [07 §3](../Knowledge/agent_harness/07_从评估信号到post-training.md#3-哪些信号能当-reward)、[05](../Knowledge/agent_harness/05_verifier的验证与防作弊.md) | “你的 judge 能直接当 reward 吗？” |
+| 环境 | 评估基础设施 | 训练环境 verifier 的构建（SWE-Gym、R2E-Gym、SWE-smith） | [07 §4](../Knowledge/agent_harness/07_从评估信号到post-training.md#4-训练环境里的-verifier-是怎么做的代码任务) | “执行型与执行无关 verifier 怎么组合？” |
 
 **ownership 边界**：你亲自做过 evaluator 微调；在 agent 改进中负责数据、评估与实验分析；大规模 policy 训练基础设施由合作团队负责。**不能说**你独立训练过完整的大规模 GRPO 系统。
 
@@ -60,12 +60,12 @@
 
 | JD 要求 | 你的真实证据 | 缺口 | 练习 | 可能追问 |
 |---|---|---|---|---|
-| golden set、专家质量标准 | rubric 与 failure taxonomy；targeted expert labeling（部分仍在推进） | 任务分解与“专家标准编码成可执行检查”的完整例子 | APEX-Agents 的 rubric 设计；[Practice L3 workspace 任务](../Practice/00_共用harness规格.md#5-level-3多类任务故障注入诊断与比较报告) | “给你一个模糊的企业任务，怎么写 golden set？” |
-| 轨迹与输出的 verifier，校准且难以 game | 规则与语义 judge 分层；结构化输出检查 | verifier 的测试集（oracle、no-op、等价解、对抗 agent） | [Knowledge/05](../Knowledge/05_verifier的验证与防作弊.md) | “你的 verifier 自己怎么验证？”“tau-bench 在哪里被 game？” |
-| 离线环境、任务集、规模化判分 | common data contracts、trace normalization、judge orchestration | 环境重置、执行隔离、并发调度、可靠重试、结果可追溯 | [Knowledge/01](../Knowledge/01_三种harness与最小对象模型.md)、[03](../Knowledge/03_故障注入与恢复.md)；读 Inspect 的 sandbox 生命周期与 Harbor 的 `Verifier.verify` | “环境怎么重置？”“infra 错误怎么和模型失败分开？” |
-| 生产轨迹 loss analysis → 回归测试 | production failure 与 disagreement mining | 从失败 trace 抽最小复现并确认测试有效 | [Knowledge/04 §5](../Knowledge/04_失败诊断与受控重跑.md#5-把诊断变成回归测试) | “这个失败怎么变成回归测试？怎么确认测试本身有效？” |
-| 跨 models/prompts/skills/harnesses 的优化循环 | 评估结果驱动迭代 | 公平比较与统计 | [Knowledge/06](../Knowledge/06_公平比较与统计.md) | “fixer agent 改了 harness，怎么保证验证集没被过拟合？” |
-| rollout gate | 质量／成本权衡 | 门的具体规则 | [06 §6](../Knowledge/06_公平比较与统计.md#6-面试可能追问) | “你会怎样设计 rollout gate？” |
+| golden set、专家质量标准 | rubric 与 failure taxonomy；targeted expert labeling（部分仍在推进） | 任务分解与“专家标准编码成可执行检查”的完整例子 | APEX-Agents 的 rubric 设计；[Practice L3 workspace 任务](../Practice/agent_harness/00_共用harness规格.md#5-level-3多类任务故障注入诊断与比较报告) | “给你一个模糊的企业任务，怎么写 golden set？” |
+| 轨迹与输出的 verifier，校准且难以 game | 规则与语义 judge 分层；结构化输出检查 | verifier 的测试集（oracle、no-op、等价解、对抗 agent） | [Knowledge/05](../Knowledge/agent_harness/05_verifier的验证与防作弊.md) | “你的 verifier 自己怎么验证？”“tau-bench 在哪里被 game？” |
+| 离线环境、任务集、规模化判分 | common data contracts、trace normalization、judge orchestration | 环境重置、执行隔离、并发调度、可靠重试、结果可追溯 | [Knowledge/01](../Knowledge/agent_harness/01_三种harness与最小对象模型.md)、[03](../Knowledge/agent_harness/03_故障注入与恢复.md)；读 Inspect 的 sandbox 生命周期与 Harbor 的 `Verifier.verify` | “环境怎么重置？”“infra 错误怎么和模型失败分开？” |
+| 生产轨迹 loss analysis → 回归测试 | production failure 与 disagreement mining | 从失败 trace 抽最小复现并确认测试有效 | [Knowledge/04 §5](../Knowledge/agent_harness/04_失败诊断与受控重跑.md#5-把诊断变成回归测试) | “这个失败怎么变成回归测试？怎么确认测试本身有效？” |
+| 跨 models/prompts/skills/harnesses 的优化循环 | 评估结果驱动迭代 | 公平比较与统计 | [Knowledge/06](../Knowledge/agent_harness/06_公平比较与统计.md) | “fixer agent 改了 harness，怎么保证验证集没被过拟合？” |
+| rollout gate | 质量／成本权衡 | 门的具体规则 | [06 §6](../Knowledge/agent_harness/06_公平比较与统计.md#6-面试可能追问) | “你会怎样设计 rollout gate？” |
 
 **一个可以主动提出的观察**：Mercor 博客中的优化循环用“验证集上 cumulative reward 提升”决定是否保留新版本。若 fixer agent 能看到验证集的分数与解释，多轮之后验证集就变成了开发集。合理的回答是：保留一个 fixer 看不到的冻结测试集用于最终 gate，并对 verifier 本身做对抗测试。这是推断性的设计讨论，不是对 Mercor 内部实现的断言。
 
@@ -86,11 +86,11 @@
 
 | JD 要求 | 你的真实证据 | 缺口 | 练习 | 可能追问 |
 |---|---|---|---|---|
-| tool use／agentic benchmark | 生产 agent 评估 | 公开 benchmark 的判分机制与漏洞 | [Knowledge/02](../Knowledge/02_工具使用测量与过程约束.md)、[05](../Knowledge/05_verifier的验证与防作弊.md) | “你会怎样设计一个 tool-use benchmark？” |
-| 失败分类与占比 | failure taxonomy、disagreement mining | 诊断证据链与受控重跑 | [Knowledge/04](../Knowledge/04_失败诊断与受控重跑.md)；[Practice 分支 B](../Practice/01_岗位分支实验.md) | “你怎么知道这是模型问题而不是 grader 问题？”“占比的分母是什么？” |
-| human vs model judge、校准、一致性 | SLM judge、teacher agreement | 对人类的准确率、JudgeEval 式验证 | [05 §5](../Knowledge/05_verifier的验证与防作弊.md#5-rubric-与-llm-judge) | “judge 和人类不一致怎么办？” |
-| 反馈到 reward 与数据 | failure → data → post-training 的协作 | 哪些失败可以转成 reward | [07](../Knowledge/07_从评估信号到post-training.md) | “这个失败模式应该进 reward 还是进数据？” |
-| 结论可信 | 因果推断背景 | 配对比较、聚类、功效 | [06](../Knowledge/06_公平比较与统计.md) | “这个 3 点提升可信吗？” |
+| tool use／agentic benchmark | 生产 agent 评估 | 公开 benchmark 的判分机制与漏洞 | [Knowledge/02](../Knowledge/agent_harness/02_工具使用测量与过程约束.md)、[05](../Knowledge/agent_harness/05_verifier的验证与防作弊.md) | “你会怎样设计一个 tool-use benchmark？” |
+| 失败分类与占比 | failure taxonomy、disagreement mining | 诊断证据链与受控重跑 | [Knowledge/04](../Knowledge/agent_harness/04_失败诊断与受控重跑.md)；[Practice 分支 B](../Practice/agent_harness/01_岗位分支实验.md) | “你怎么知道这是模型问题而不是 grader 问题？”“占比的分母是什么？” |
+| human vs model judge、校准、一致性 | SLM judge、teacher agreement | 对人类的准确率、JudgeEval 式验证 | [05 §5](../Knowledge/agent_harness/05_verifier的验证与防作弊.md#5-rubric-与-llm-judge) | “judge 和人类不一致怎么办？” |
+| 反馈到 reward 与数据 | failure → data → post-training 的协作 | 哪些失败可以转成 reward | [07](../Knowledge/agent_harness/07_从评估信号到post-training.md) | “这个失败模式应该进 reward 还是进数据？” |
+| 结论可信 | 因果推断背景 | 配对比较、聚类、功效 | [06](../Knowledge/agent_harness/06_公平比较与统计.md) | “这个 3 点提升可信吗？” |
 
 ---
 

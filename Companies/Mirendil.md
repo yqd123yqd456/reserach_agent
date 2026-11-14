@@ -24,29 +24,29 @@ JD 很短（约 1.5k 字符），没有列出任职要求与面试流程。
 
 | JD 要求 | 你的真实证据 | 缺口 | 练习 | 可能追问 |
 |---|---|---|---|---|
-| 超出标准 benchmark 的真实能力评估 | 生产 agent 评估；proxy 与 outcome 的区分 | 研究／工程任务的判分（部分进度、预算、人类基线） | [Knowledge/08 §3](../Knowledge/08_研究agent评估与L1L2L3.md#3-l2-怎样评估三个代表性-benchmark-的设计选择) | “怎么评估一个研究 agent 是否真的变强？” |
-| 持续回归检测 | 回归集、targeted 与 broader regression | 噪声 vs 真实回归；配对比较；checkpoint 间比较 | [Knowledge/06](../Knowledge/06_公平比较与统计.md) | “两个 checkpoint 差 2 点，是回归吗？” |
-| agent 辅助人工检查模型行为 | trace normalization、failure analysis | 让 agent 读 trace 时怎样防止它的总结出错 | [Knowledge/04](../Knowledge/04_失败诊断与受控重跑.md)；[Practice 分支 D](../Practice/01_岗位分支实验.md) | “你会怎样用 agent 帮人看几千条 trace？怎么验证它的结论？” |
-| 训练可观测性 | 因果推断、指标设计 | 训练中的行为探针、与 loss 的对照 | [08 §6](../Knowledge/08_研究agent评估与L1L2L3.md#6-面试追问) | “BPB 降了但任务分没变，你怎么解释？” |
-| 与 post-training／RL 闭环 | 向 post-training 提供信号 | 评估信号怎样变成训练决策 | [Knowledge/07](../Knowledge/07_从评估信号到post-training.md) | “哪个信号能当 reward？” |
+| 超出标准 benchmark 的真实能力评估 | 生产 agent 评估；proxy 与 outcome 的区分 | 研究／工程任务的判分（部分进度、预算、人类基线） | [Knowledge/08 §3](../Knowledge/agent_harness/08_研究agent评估与L1L2L3.md#3-l2-怎样评估三个代表性-benchmark-的设计选择) | “怎么评估一个研究 agent 是否真的变强？” |
+| 持续回归检测 | 回归集、targeted 与 broader regression | 噪声 vs 真实回归；配对比较；checkpoint 间比较 | [Knowledge/06](../Knowledge/agent_harness/06_公平比较与统计.md) | “两个 checkpoint 差 2 点，是回归吗？” |
+| agent 辅助人工检查模型行为 | trace normalization、failure analysis | 让 agent 读 trace 时怎样防止它的总结出错 | [Knowledge/04](../Knowledge/agent_harness/04_失败诊断与受控重跑.md)；[Practice 分支 D](../Practice/agent_harness/01_岗位分支实验.md) | “你会怎样用 agent 帮人看几千条 trace？怎么验证它的结论？” |
+| 训练可观测性 | 因果推断、指标设计 | 训练中的行为探针、与 loss 的对照 | [08 §6](../Knowledge/agent_harness/08_研究agent评估与L1L2L3.md#6-面试追问) | “BPB 降了但任务分没变，你怎么解释？” |
+| 与 post-training／RL 闭环 | 向 post-training 提供信号 | 评估信号怎样变成训练决策 | [Knowledge/07](../Knowledge/agent_harness/07_从评估信号到post-training.md) | “哪个信号能当 reward？” |
 
 ## 4. L1–L2–L3 准备框架（你的框架，不是公司术语）
 
 - L1 模型指标（如 BPB）→ L2 实际研究任务表现 → L3 跨轮研发收益。
-- 讲清 L1 不能自动证明 L2，更不能直接证明 L3 或完全自主的递归自我改进。公开证据中 BPB 与平均 benchmark 分数在基座模型间强相关（Huang et al. 2024），单任务预测误差大（Gadre et al. 2024），没有找到 BPB 与 agentic 任务成功率的直接证据。详见 [Knowledge/08](../Knowledge/08_研究agent评估与L1L2L3.md)。
+- 讲清 L1 不能自动证明 L2，更不能直接证明 L3 或完全自主的递归自我改进。公开证据中 BPB 与平均 benchmark 分数在基座模型间强相关（Huang et al. 2024），单任务预测误差大（Gadre et al. 2024），没有找到 BPB 与 agentic 任务成功率的直接证据。详见 [Knowledge/08](../Knowledge/agent_harness/08_研究agent评估与L1L2L3.md)。
 
 ## 5. Take-home 准备（题目未知时能做的）
 
 **可迁移的交付形态**（不论题目）：
 1. 一个可运行的 runner：任务格式、执行、trace 记录。
-2. 一个经过测试的 verifier：oracle 通过、no-op 失败、错误变体被拒（[Knowledge/05 §3](../Knowledge/05_verifier的验证与防作弊.md#3-verifier-的测试集怎么建)）。
+2. 一个经过测试的 verifier：oracle 通过、no-op 失败、错误变体被拒（[Knowledge/05 §3](../Knowledge/agent_harness/05_verifier的验证与防作弊.md#3-verifier-的测试集怎么建)）。
 3. 有效／无效 run 分开；带不确定度的比较报告。
 4. 至少一条失败诊断。
 5. 简洁 README：怎样运行、判分规则、已知局限、哪些部分未运行。
 
 **事先要问清（拿到题目时）**：时限、语言、允许的模型与 API 预算、是否允许 AI 编程工具、是否需要真实模型运行、提交物格式。
 
-**take-home 自查清单**见 [Review/02 §Mirendil](../Review/02_口述与自测.md#mirendil-take-home-review)。
+**take-home 自查清单**见 [Review/02 §Mirendil](../Review/agent_harness/02_口述与自测.md#mirendil-take-home-review)。
 
 ## 6. 反问
 
