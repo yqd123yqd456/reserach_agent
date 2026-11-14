@@ -3,7 +3,8 @@
 """
 import json, sys
 import inv_tools as T
-GT = json.load(open("ground_truth.json")); CAT, ROOT = GT["category"], GT["root_cause"]
+with open("ground_truth.json") as _fh: GT = json.load(_fh)
+CAT, ROOT = GT["category"], GT["root_cause"]
 FAULTY = [r for r, c in CAT.items() if c != "none"]; CONTROLS = [r for r, c in CAT.items() if c == "none"]
 DEFER_CATEGORIES = ("unknown", "uncertain")
 # 根因按键名精确匹配。下面是唯一的例外：人工认定“与真值是同一个原因、只是名字不同”的别名（规则基线用的名字）。

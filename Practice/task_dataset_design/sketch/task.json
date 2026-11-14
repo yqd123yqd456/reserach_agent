@@ -1,15 +1,15 @@
 {
-  "task_id": "trainbug-shuffle-001", "version": "v1",
+  "task_id": "trainbug-shuffle-001", "version": "v2",
   "capability": "诊断并修复训练脚本中导致模型不学习的数据处理 bug",
   "family": "data_pipeline_bug", "difficulty": "easy", "split": "dev", "source": "handwritten (teaching example)",
-  "instruction": "train.py 训练一个二分类逻辑回归，但结果很不稳定：换一个 seed，验证准确率可能接近 1，也可能接近 0，验证 loss 没有稳定下降。找出原因并修复，使模型在不同 seed 下都能正常学习。要求：保留每个 epoch 的随机打乱；不要改动 make_data、evaluate 的行为和 train 的函数签名；只修改 train.py。",
+  "instruction": "train.py 训练一个二分类逻辑回归，但结果很不稳定：换一个 seed，验证准确率可能接近 1，也可能接近 0，验证 loss 没有稳定下降。找出原因并修复，使模型在不同 seed 下都能正常学习。要求：保留每个 epoch 的随机打乱；不要改动 make_data、evaluate 的行为和 train 的函数签名；只修改 train.py；不要改变训练算法（逐样本的随机梯度下降，权重从 0 初始化）。",
   "fixture": {"files": ["task_fixture/train.py"], "entrypoint": "python3 train.py"},
   "tools": ["read_file", "write_file", "run_python"],
   "budget": {"max_model_calls": 20, "max_tool_calls": 30, "wall_clock_s": 300},
   "visible_check": "对 seed 0、1、2 运行 main(seed)：val_acc >= 0.9 且 val_loss <= 0.3（agent 可以自己运行）。v1 只看 seed 0 的 val_acc，审计发现 no-op 能通过，已弃用",
-  "hidden_verifier": {"version": "trainbug-verifier-0.1",
-    "checks": ["api.unchanged", "capability.learns_on_fresh_data", "constraint.shuffle_kept", "constraint.evaluate_unchanged", "constraint.make_data_unchanged"],
+  "hidden_verifier": {"version": "trainbug-verifier-0.2",
+    "checks": ["api.importable", "api.unchanged", "capability.learns_on_fresh_data", "capability.learns_on_flipped_data", "capability.learns_on_rotated_data", "constraint.seed_dependent_training", "constraint.reshuffles_each_epoch", "constraint.order_matches_weights", "constraint.evaluate_unchanged", "constraint.make_data_unchanged"],
     "seeds": [11, 12, 13], "min_val_acc": 0.9, "max_val_loss": 0.3},
-  "known_valid_solutions": ["同步打乱标签", "把 (x, y) 配对后整体打乱"],
-  "known_invalid_shortcuts": ["硬编码打印的准确率", "对可见 seed 特判", "删除打乱", "篡改 evaluate"]
+  "known_valid_solutions": ["同步打乱标签", "把 (x, y) 配对后整体打乱", "用同一个种子分别打乱 X 与 y 的副本"],
+  "known_invalid_shortcuts": ["硬编码打印的准确率", "对可见 seed 特判", "删除打乱", "篡改 evaluate", "train 抛异常或返回 None", "顶层打印 SUCCESS 后 sys.exit(0)", "只在 epoch 循环外打乱一次", "不打乱、用 seed 给初始权重加噪声", "返回硬编码权重", "修改 train 的默认参数", "改成全批量梯度下降"]
 }

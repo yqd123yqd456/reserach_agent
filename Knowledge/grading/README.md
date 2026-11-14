@@ -25,7 +25,7 @@
 |---|---|---|
 | 单项检查（check） | 对一条标准的判定，结果是 pass／fail／unknown／error 之一，带证据 | “报告的数字与日志一致”：fail，证据是不一致的那一行 |
 | 样本结果 | 由单项检查按规则合成：全部必需项通过才算成功（strict success），或按通过比例给部分得分 | 9 项中 8 项通过：strict 失败，partial 0.889 |
-| 数据集聚合 | 样本结果的统计：成功率、平均部分得分、各检查项的通过分布、待复核数量 | 6 个样本，strict 成功率 0.333 |
+| 数据集聚合 | 样本结果的统计：成功率、平均部分得分、各检查项的通过分布、待复核数量 | 10 个样本，strict 成功率 0.4 |
 | 确定性 checker | 结果完全由输入决定的代码 | 正则、JSON 解析、数值比较 |
 | rubric | 一组可逐条判定的标准；可以由代码或 judge 执行 | APEX 的标准要求“客观、具体、自包含”，类比单元测试 |
 | LLM judge | 用模型执行 rubric 的开放判断部分 | 论证是否支持结论 |
@@ -59,9 +59,9 @@
 
 **样本结果**：`{"strict_success": false, "partial_score": 0.889, "needs_review": false, "checks": [...]}`
 
-**聚合**：`{"n_samples": 6, "strict_success_rate": 0.333, "mean_partial_score": 0.63, "needs_review": 1, "per_check": {...}}`
+**聚合**：`{"n_samples": 10, "strict_success_rate": 0.4, "mean_partial_score": 0.7, "needs_review": 2, "per_check": {...}}`
 
-这些都是草图 [`grade_report.py`](../../Practice/grading/sketch/grade_report.py) 的实际输出（2026-11-14 本地运行；judge 用预置标签代替）。
+这些都是草图 [`grade_report.py`](../../Practice/grading/sketch/grade_report.py) 的实际输出（2026-11-14 本地运行；judge 用预置标签代替）。聚合数字来自审计修正后的版本（`report-grader-0.2`，10 个样例）；修正内容见 [Practice/grading §7](../../Practice/grading/README.md#7-已知问题与修正2026-11-14-审计)。
 
 ### 四类样例怎样被判
 
@@ -96,9 +96,11 @@
 
 | 情况 | 草图中的规则 | 理由 |
 |---|---|---|
-| 缺失或空输出 | 一条 `output.present = fail`，样本失败；不抛异常 | 缺失是被测系统的失败；grader 不应崩溃，也不应把它从分母里去掉 |
-| 输出存在但解析失败 | 解析项记 `error`；依赖它的检查记 `unknown`；样本不算成功，进入待复核 | 可能是 agent 的格式问题，也可能是 grader 解析过严；需要人看 |
+| 缺失或空输出 | 全部 9 个检查项都记 `fail`（部分得分 0/9，分母与其他样本一致），样本失败；不抛异常 | 缺失是被测系统的失败；grader 不应崩溃，也不应把它从分母里去掉 |
+| 输出存在但解析失败（含表里出现 `nan`） | 解析项记 `error`；依赖它的检查记 `unknown`；样本不算成功，进入待复核 | 可能是 agent 的格式问题，也可能是 grader 解析过严；需要人看 |
 | judge 没有给出可用结论 | `unknown`，不当作通过 | Inspect 的 `model_graded_qa` 在解析不到分数时返回“未评分”（`Score.unscored(reason="grader_failed")`），而不是判错 |
+| 确定性规则读到相互矛盾的信息（均值有多个不同的候选数；改进声明既有肯定又有否定而日志差值不足） | `unknown`，证据里列出候选，进入待复核 | 静默挑一个会让结果取决于书写顺序 |
+| strict 模式下有多余的章节 | 允许；strict 只约束必需章节的层级、次数与顺序 | 多写一节不是格式错误 |
 | 部分得分 | 与 strict 成功同时报告 | 部分得分更密，适合诊断与训练信号；strict 成功对应“能否交付” |
 
 **unknown 在聚合里怎么算要写明**：草图把 unknown 当作“未通过”计入部分得分，同时单独报告数量。另一种做法是只在已判定的样本上算比例。两种口径在 unknown 较多时差别很大，报告里必须说明用的是哪一种。PaperBench 的 judge 在出错时给该叶子 0 分并标记 `valid_score=False`，但聚合时不使用这个标记，无效叶子**静默地**按 0 计入（[`graded_task_node.py` L145–L153](https://github.com/openai/frontier-evals/blob/b78dab1da774a6456b1ed9c48c9ff194ee3ff36d/project/paperbench/paperbench/judge/graded_task_node.py#L145-L153)、[`base.py` L136–L153](https://github.com/openai/frontier-evals/blob/b78dab1da774a6456b1ed9c48c9ff194ee3ff36d/project/paperbench/paperbench/judge/base.py#L136-L153)；代码已读）。这是一个可以在面试中指出的设计点：分数偏低时分不清是提交差还是 judge 出错。
@@ -166,16 +168,17 @@ checks = [Check(name, kind, required, fn)]      # fn(sample, parsed) -> CheckRes
 grade(sample) -> [CheckResult]                   # 不抛异常；缺失与解析失败有固定规则
 summarize(sample_id, checks) -> SampleResult     # strict_success, partial_score, needs_review
 aggregate([SampleResult]) -> Report              # 各口径 + unknown/error 计数
-audit(cases_with_expected, results) -> 误接受/误拒绝/分歧清单
+audit(cases_with_expected, results) -> 误接受/误拒绝/分歧清单/未标注的检查项
 ```
 
-关键伪代码见草图；整个草图约 150 行。
+关键伪代码见草图；整个草图约 240 行，另有约 185 行的回归测试 `test_grade_report.py`。
 
 ## 10. 局限
 
 - 草图中的 judge 是预置标签，没有调用任何模型；judge 的偏差与一致性没有被实际测量。
-- 关键词检查（`content.required`、夸大声明的识别）是粗糙的代理，真实题目中应由经过校准的 judge 或更精确的规则替代。
-- 6 个样例只够验证规则的方向，不足以估计误判率。
+- 关键词检查（`content.required`、夸大声明的识别）是粗糙的代理，真实题目中应由经过校准的 judge 或更精确的规则替代。夸大声明的识别在审计后加了否定识别和更宽的词表，但仍是词表启发式，已知的误判方向列在 [Practice/grading §7](../../Practice/grading/README.md#7-已知问题与修正2026-11-14-审计)。
+- 10 个样例只够验证规则的方向，不足以估计误判率。
+- 草图“运行通过”不等于正确：2026-11-14 的独立审计在它身上复现了 7 条缺陷（`nan` 通过数字核对、均值读错、缺失输出的分母不一致等），修正后才有回归测试。
 - “日志可信”是前提：如果 agent 能写日志，数字一致性检查就失去意义（见 [agent_harness Practice 00 §2.1](../../Practice/agent_harness/00_共用harness规格.md#21-一次-run-落盘什么)）。
 
 ## 来源

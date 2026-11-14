@@ -52,40 +52,59 @@ for _ in range(epochs):
 
 > 我最初把现象写成“准确率停在 0.5 左右”，运行后发现不对。**任务说明里的现象描述必须来自实际运行**，否则指令本身就在误导 agent。
 
-**给 agent 的说明**（`task.json` 的 `instruction`）：train.py 训练一个二分类逻辑回归，但结果很不稳定：换一个 seed，验证准确率可能接近 1，也可能接近 0，验证 loss 没有稳定下降。找出原因并修复，使模型在不同 seed 下都能正常学习。要求：保留每个 epoch 的随机打乱；不要改动 `make_data`、`evaluate` 的行为和 `train` 的函数签名；只修改 train.py。
+**给 agent 的说明**（`task.json` 的 `instruction`）：train.py 训练一个二分类逻辑回归，但结果很不稳定：换一个 seed，验证准确率可能接近 1，也可能接近 0，验证 loss 没有稳定下降。找出原因并修复，使模型在不同 seed 下都能正常学习。要求：保留每个 epoch 的随机打乱；不要改动 `make_data`、`evaluate` 的行为和 `train` 的函数签名；只修改 train.py；不要改变训练算法（逐样本的随机梯度下降，权重从 0 初始化）。
 
-**合法修复**（多个）：同步打乱标签（`ys = [y[i] for i in perm]`）；把 (x, y) 配对后整体打乱。
+**合法修复**（多个）：同步打乱标签（`ys = [y[i] for i in perm]`）；把 (x, y) 配对后整体打乱；用同一个种子分别打乱 X 与 y 的副本。
 
-**错误修复与捷径**：硬编码打印的指标；只对可见 seed 特判；删除打乱（让训练恢复，但违反要求）；篡改 `evaluate`。
+**错误修复与捷径**：硬编码打印的指标；只对可见 seed 特判；删除打乱（让训练恢复，但违反要求）；篡改 `evaluate`。2026-11-14 的独立审计又补了 8 个：`train` 抛异常；返回 `None`；顶层打印 SUCCESS 后 `sys.exit(0)`；只在循环外打乱一次；不打乱、用 seed 给初始权重加噪声；返回硬编码权重；修改默认参数；改成全批量梯度下降。
 
 **verifier**（`verifier.py`，隐藏）：
 
 | 检查 | 怎样判 | 防什么 |
 |---|---|---|
-| `api.unchanged` | `train` 的参数列表不变；三个函数都在 | 改签名绕过 |
-| `capability.learns_on_fresh_data` | verifier **自己生成**训练与验证数据，用 3 个新 seed 调用候选的 `train`，用 verifier **自己实现**的准确率与 loss 判定：每个 seed 准确率 ≥ 0.9 且 loss ≤ 0.3 | 硬编码、对可见 seed 特判、篡改 `evaluate` |
-| `constraint.shuffle_kept` | 同一份数据、不同 seed 训练两次，权重必须不同（初始化为 0，seed 只影响打乱顺序） | 删除打乱 |
+| `api.importable` | 导入候选文件；任何异常（含顶层 `sys.exit`）记为失败并结束判定。只在导入失败时出现在结果里 | 候选代码提前结束进程、让 verifier 崩溃 |
+| `api.unchanged` | 三个函数都在；`train` 的签名（参数名与默认值）等于 `(X, y, epochs=20, lr=0.1, seed=0)` | 改签名或改默认值绕过 |
+| `capability.learns_on_fresh_data` | verifier **自己生成**训练与验证数据，用 3 个新 seed 调用候选的 `train`，用 verifier **自己实现**的准确率与 loss 判定：每个 seed 准确率 ≥ 0.9 且 loss ≤ 0.3 | 硬编码打印值、对可见 seed 特判、篡改 `evaluate` |
+| `capability.learns_on_flipped_data`、`capability.learns_on_rotated_data` | 同上，但换数据分布：两类中心互换；两类中心旋转 90 度 | 返回硬编码的“好权重”（只在原分布上有效） |
+| `constraint.seed_dependent_training` | 同一份数据、不同 seed 训练两次，权重必须不同。它只说明结果依赖 seed，**不**说明每个 epoch 都在打乱 | 删除打乱 |
+| `constraint.reshuffles_each_epoch` | 把每条样本包成会记录读取的 `list` 子类，训练 3 个 epoch（30 条样本、seed 1 与 2），从读取记录还原每个 epoch 的样本顺序：必须能还原成 3 个排列；没有一个等于原始顺序；相邻 epoch 的顺序不同；两个 seed 的顺序不同 | 只在循环外打乱一次；不打乱而用 seed 给初始权重加噪声 |
+| `constraint.order_matches_weights` | verifier 用自己的逐样本 SGD（零初始化）按记录到的顺序重放，结果必须与候选返回的权重一致（误差 ≤ 1e-6） | 读取顺序只是摆设、实际按别的方式得到权重；同时会拒绝 no-op（标签错位） |
 | `constraint.evaluate_unchanged` | 候选的 `evaluate` 在 3 组探针上与参考实现一致 | 篡改评估函数 |
 | `constraint.make_data_unchanged` | `make_data(50, 3)` 与参考实现一致 | 篡改数据生成 |
+
+每项检查单独包在异常捕获里：候选代码抛出任何异常、或 `train` 返回的不是 3 个有限数，该项记为失败并附异常信息，verifier 不崩溃。命令行的判定是**退出码**（0 通过，1 失败）；各项结果与最后一行 `VERDICT` 在候选代码全部运行结束后写到 stderr，候选代码运行期间的 `print` 被丢弃。
 
 **审计结果**（`audit_task.py` 的实际输出）：
 
 ```text
-variant                   kind     vis_v1  vis_v2  hidden   failed hidden checks
-noop_buggy                no-op    PASS    fail    fail     ['capability.learns_on_fresh_data']
-fix_shuffle_labels        valid    PASS    PASS    PASS     []
-fix_shuffle_pairs         valid    PASS    PASS    PASS     []
-wrong_hardcode_print      invalid  PASS    PASS    fail     ['capability.learns_on_fresh_data']
-wrong_special_case_seed0  invalid  PASS    fail    fail     ['capability.learns_on_fresh_data']
-wrong_remove_shuffle      invalid  PASS    PASS    fail     ['constraint.shuffle_kept']
-wrong_tamper_evaluate     invalid  PASS    fail    fail     ['capability.learns_on_fresh_data', 'constraint.evaluate_unchanged']
-false accepts: visible v1=5, visible v2=2, hidden verifier=0; false rejects by hidden verifier=0
+variant                    kind     vis_v1  vis_v2  hidden  cli  as_expected  failed hidden checks
+noop_buggy                 no-op    PASS    fail    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.order_matches_weights']
+fix_shuffle_labels         valid    PASS    PASS    PASS    0    yes          []
+fix_shuffle_pairs          valid    PASS    PASS    PASS    0    yes          []
+fix_same_seed_twice        valid    PASS    PASS    PASS    0    yes          []
+wrong_hardcode_print       invalid  PASS    PASS    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.order_matches_weights']
+wrong_special_case_seed0   invalid  PASS    fail    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.order_matches_weights']
+wrong_remove_shuffle       invalid  PASS    PASS    fail    1    yes          ['constraint.seed_dependent_training', 'constraint.reshuffles_each_epoch']
+wrong_tamper_evaluate      invalid  PASS    fail    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.order_matches_weights', 'constraint.evaluate_unchanged']
+crash_train_raises         invalid  fail    fail    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.seed_dependent_training', 'constraint.reshuffles_each_epoch', 'constraint.order_matches_weights']
+crash_train_returns_none   invalid  fail    fail    fail    1    yes          ['capability.learns_on_fresh_data', 'capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.seed_dependent_training', 'constraint.reshuffles_each_epoch', 'constraint.order_matches_weights']
+crash_toplevel_sys_exit    invalid  fail    fail    fail    1    yes          ['api.importable']
+wrong_shuffle_once         invalid  PASS    PASS    fail    1    yes          ['constraint.reshuffles_each_epoch']
+wrong_noshuffle_seed_noise invalid  PASS    PASS    fail    1    yes          ['constraint.reshuffles_each_epoch']
+wrong_hardcoded_weights    invalid  PASS    PASS    fail    1    yes          ['capability.learns_on_flipped_data', 'capability.learns_on_rotated_data', 'constraint.reshuffles_each_epoch', 'constraint.order_matches_weights']
+wrong_changed_defaults     invalid  PASS    PASS    fail    1    yes          ['api.unchanged']
+wrong_full_batch_gd        invalid  PASS    PASS    fail    1    yes          ['constraint.seed_dependent_training', 'constraint.reshuffles_each_epoch', 'constraint.order_matches_weights']
+false accepts: visible v1=10, visible v2=7, hidden verifier=0; false rejects by hidden verifier=0
+variants=16, verdicts differing from expectation=0
 ```
 
 读法：
-- `vis_v1`（只看 seed 0 打印的准确率）接受了全部 5 个不该接受的候选，**包括什么都没改的原始代码**——因为 seed 0 恰好是噪声方向对的那个。
-- `vis_v2`（3 个 seed，准确率加 loss）仍然接受硬编码打印与删除打乱：它相信被测代码打印的数字，也不检查约束。
-- 隐藏 verifier 没有误接受，也没有误拒两个合法修复。
+- `kind` 决定预期判定：`valid` 应通过，其余应被拒。`cli` 是命令行 `verifier.py` 的退出码；`as_expected` 为 `yes` 表示隐藏判定符合预期、退出码与进程内判定一致、且 stdout 为空。有任何一行不是 `yes`，`audit_task.py` 以退出码 1 结束。
+- `vis_v1`（只看 seed 0 打印的准确率）接受了 13 个不该接受的候选中的 10 个，**包括什么都没改的原始代码**——因为 seed 0 恰好是噪声方向对的那个。没被它接受的 3 个是直接崩溃或提前退出的候选。
+- `vis_v2`（3 个 seed，准确率加 loss）仍然接受 7 个：硬编码打印、删除打乱、只打乱一次、seed 噪声、硬编码权重、改默认值、全批量。它相信被测代码打印的数字，也不检查约束。
+- 隐藏 verifier（0.2 版）在这 16 个候选上没有误接受，也没有误拒三个合法修复。这个结论只对这 16 个候选成立。
+- 0.1 版 verifier 曾接受其中 5 个（顶层 `sys.exit`、只打乱一次、seed 噪声、硬编码权重、改默认值），并在 2 个上崩溃。此前那张“7 个候选、0 误接受”的表没有包含这些候选。修正记录见 [Practice 的已知问题一节](../../Practice/task_dataset_design/README.md#已知问题与修正2026-11-14-审计)。
+- `wrong_full_batch_gd` 在三个数据分布上都学会了，仍被拒：它改变了优化算法，打乱不再影响结果。本任务把它判为不要求通过。
 
 这张表就是任务审计的最小形态。它同时说明：**可见检查是给 agent 的反馈，不是判定依据**。
 
@@ -177,7 +196,7 @@ false accepts: visible v1=5, visible v2=2, hidden verifier=0; false rejects by h
 
 ```json
 {
-  "task_id": "trainbug-shuffle-001", "version": "v1",
+  "task_id": "trainbug-shuffle-001", "version": "v2",
   "capability": "诊断并修复训练脚本中导致模型不学习的数据处理 bug",
   "family": "data_pipeline_bug", "difficulty": "easy", "split": "dev",
   "source": "handwritten (teaching example)",
@@ -186,7 +205,7 @@ false accepts: visible v1=5, visible v2=2, hidden verifier=0; false rejects by h
   "tools": ["read_file", "write_file", "run_python"],
   "budget": {"max_model_calls": 20, "max_tool_calls": 30, "wall_clock_s": 300},
   "visible_check": "...",
-  "hidden_verifier": {"version": "trainbug-verifier-0.1", "checks": ["..."], "seeds": [11, 12, 13],
+  "hidden_verifier": {"version": "trainbug-verifier-0.2", "checks": ["..."], "seeds": [11, 12, 13],
                       "min_val_acc": 0.9, "max_val_loss": 0.3},
   "known_valid_solutions": ["..."], "known_invalid_shortcuts": ["..."]
 }
@@ -214,7 +233,10 @@ false accepts: visible v1=5, visible v2=2, hidden verifier=0; false rejects by h
 
 - 例子是一个教学用的单文件任务，bug 是手工注入的，难度低；它演示机制，不代表真实任务分布。
 - verifier 在进程内导入候选代码，只适合教学。评估不可信代码需要 [Practice 00 §5.3](../../Practice/agent_harness/00_共用harness规格.md#53-代码任务与执行隔离可选进入-l4-前) 的执行边界。
-- `constraint.shuffle_kept` 是行为代理：它检查“seed 影响结果”，一个保留了无意义随机性的错误实现也可能通过。更强的做法是记录每个 epoch 的样本顺序。
+- verifier 与候选代码同处一个进程。候选调用 `os._exit(0)` 并自己往 stderr 写一行 `VERDICT: SUCCESS`，命令行就以退出码 0 结束（已在副本上复现）。进程内的修补拦不住这一类；判定逻辑必须运行在候选代码接触不到的子进程或容器之外。
+- `constraint.seed_dependent_training` 只检查“seed 影响结果”。“每个 epoch 重新打乱”由 `constraint.reshuffles_each_epoch` 检查，它依赖记录样本的读取顺序，有两个已知缺口：（1）**可能误拒**——候选在训练前把每条样本复制成新对象（例如 `X = [list(x) for x in X]`），读取记录就不再反映训练顺序，合法修复会被拒（已复现）；一次访问里读取样本的次数不固定的实现也还原不出顺序。（2）**判不了随机性的质量**——每个 epoch 只交换两条样本的实现能通过（已复现）；检查只要求各 epoch 的顺序互不相同、不等于原始顺序、随 seed 变化。
+- `constraint.order_matches_weights` 假定算法是零初始化的逐样本 SGD。任务 v1 的指令没有明说不得更换优化算法；按 §4.3 的标准，这是 verifier 依赖而指令没有写明的要求。**任务 v2 已把这句话写进指令**（“不要改变训练算法（逐样本的随机梯度下降，权重从 0 初始化）”），全批量、小批量的改写被拒现在有指令依据。这也是“修题而不是责怪模型”的一个实例：改指令后任务版本号升级，v1 与 v2 的结果不混用。
+- 换数据分布只拒绝与数据无关的固定权重。不训练、直接由类均值算出权重的候选能通过三项 `capability` 检查，靠 `constraint.order_matches_weights` 才被拒（已复现）。
 - 对 Terminal-Bench 任务的审计只基于读代码。
 
 ## 来源

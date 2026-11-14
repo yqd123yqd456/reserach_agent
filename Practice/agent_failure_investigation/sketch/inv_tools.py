@@ -3,7 +3,7 @@
 命令行演示：python3 inv_tools.py
 """
 import json, re
-RUNS = {r["run_id"]: r for r in json.load(open("rollouts.json"))}
+with open("rollouts.json") as _fh: RUNS = {r["run_id"]: r for r in json.load(_fh)}
 
 TOOL_SCHEMAS = [   # 交给 LLM 的工具定义（供应商无关的 JSON Schema 形式）
  {"name": "list_runs", "description": "列出 run 摘要，可按成功与否、任务、模型过滤。",
