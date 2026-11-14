@@ -35,18 +35,50 @@ JD 很短（约 1.5k 字符），没有列出任职要求与面试流程。
 - L1 模型指标（如 BPB）→ L2 实际研究任务表现 → L3 跨轮研发收益。
 - 讲清 L1 不能自动证明 L2，更不能直接证明 L3 或完全自主的递归自我改进。公开证据中 BPB 与平均 benchmark 分数在基座模型间强相关（Huang et al. 2024），单任务预测误差大（Gadre et al. 2024），没有找到 BPB 与 agentic 任务成功率的直接证据。详见 [Knowledge/08](../Knowledge/agent_harness/08_研究agent评估与L1L2L3.md)。
 
-## 5. Take-home 准备（题目未知时能做的）
+## 5. Take-home 准备：六个专题
 
-**可迁移的交付形态**（不论题目）：
-1. 一个可运行的 runner：任务格式、执行、trace 记录。
-2. 一个经过测试的 verifier：oracle 通过、no-op 在应改状态的任务上失败（拒绝类任务靠输出检查区分）、错误变体被拒（[Knowledge/05 §3](../Knowledge/agent_harness/05_verifier的验证与防作弊.md#3-verifier-的测试集怎么建)）。
-3. 有效／无效 run 分开；带不确定度的比较报告。
-4. 至少一条失败诊断。
-5. 简洁 README：怎样运行、判分规则、已知局限、哪些部分未运行。
+题目未知。下面六个专题是按 JD 与公司公开材料推断的**可能方向**，用来建立“拿到题后怎样开始写”的思路；没有证据表明 take-home 会是其中任何一个。每个专题都有主文、可运行草图和一张开工速查卡。
 
-**事先要问清（拿到题目时）**：时限、语言、允许的模型与 API 预算、是否允许 AI 编程工具、是否需要真实模型运行、提交物格式。
+| 专题 | 对应 JD 原文 | 主文 | 草图 | 速查卡 |
+|---|---|---|---|---|
+| grading | “evaluation frameworks that measure model capabilities along realistic axes” | [Knowledge](../Knowledge/grading/README.md) | [Practice](../Practice/grading/README.md) | [Review](../Review/grading/速查卡.md) |
+| task_dataset_design | 同上；“beyond standard benchmarks” | [Knowledge](../Knowledge/task_dataset_design/README.md) | [Practice](../Practice/task_dataset_design/README.md) | [Review](../Review/task_dataset_design/速查卡.md) |
+| trace_viewer | “workflows for humans to efficiently inspect model behavior” | [Knowledge](../Knowledge/trace_viewer/README.md) | [Practice](../Practice/trace_viewer/README.md) | [Review](../Review/trace_viewer/速查卡.md) |
+| training_eval_diagnostics | “instrument training runs with observability tooling”；“regression-detection systems” | [Knowledge](../Knowledge/training_eval_diagnostics/README.md) | [Practice](../Practice/training_eval_diagnostics/README.md) | [Review](../Review/training_eval_diagnostics/速查卡.md) |
+| agent_failure_investigation | “agent-assisted workflows”；Lor 文章中的“读几千条 agent trace 找失败” | [Knowledge](../Knowledge/agent_failure_investigation/README.md) | [Practice](../Practice/agent_failure_investigation/README.md) | [Review](../Review/agent_failure_investigation/速查卡.md) |
+| autoresearch_loop | “close the loop between eval signal and training decisions”；公司的研究自动化方向 | [Knowledge](../Knowledge/autoresearch_loop/README.md) | [Practice](../Practice/autoresearch_loop/README.md) | [Review](../Review/autoresearch_loop/速查卡.md) |
 
-**take-home 自查清单**见 [Review/02 §Mirendil](../Review/agent_harness/02_口述与自测.md#mirendil-take-home-review)。
+**共用基础**：[agent_harness](../Knowledge/agent_harness/README.md) 提供运行与记录的合同（run 目录、events、CheckResult）、verifier 的验证方法与公平比较。六个专题复用它，不重复讲。
+
+**专题之间怎样衔接**（共享一个场景：agent 修一个训练 bug、跑实验、交实验报告）：
+
+```text
+task_dataset_design 定义任务与隐藏 verifier
+        │
+        ▼
+agent_harness 运行并落盘（events、快照、verdict） ──► trace_viewer 展示轨迹与评分证据
+        │                                                   │
+        ▼                                                   ▼
+grading 判实验报告（数字对照日志）              agent_failure_investigation 在很多条 run 上找失败类别
+        │                                                   │
+        └────────────► training_eval_diagnostics 比较 checkpoint、分切片、下钻 ◄──┘
+                                    │
+                                    ▼
+                    autoresearch_loop 用这些结果决定下一轮实验保留什么
+```
+
+**推荐学习顺序**：grading → task_dataset_design → trace_viewer → training_eval_diagnostics → agent_failure_investigation → autoresearch_loop。前两个是其余的基础（判分与任务）；trace_viewer 与 diagnostics 是两种“看结果”的方式；后两个把前面的东西组合起来。
+
+**不论题目是什么都适用的交付形态**：
+1. 一个可运行的入口，README 里有一条命令。
+2. 判分或验证逻辑有自己的测试：正例、反例、等价解、缺失与解析失败。
+3. 有效／无效分开；结果带不确定度；统计单位写明。
+4. 至少一个从数字下钻到具体样本的例子。
+5. README：怎样运行、规则、已知局限、**哪些部分没有运行**。
+
+**拿到题目时先确认**：时限、语言、允许的模型与 API 预算、是否允许 AI 编程工具、是否需要真实模型运行、提交物格式。
+
+**take-home 自查清单**见 [Review/agent_harness/02 §Mirendil](../Review/agent_harness/02_口述与自测.md#mirendil-take-home-review)。
 
 ## 6. 反问
 

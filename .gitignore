@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+Practice/autoresearch_loop/sketch/logs/
+Practice/autoresearch_loop/sketch/results.jsonl
+Practice/trace_viewer/sketch/viewer_check.png

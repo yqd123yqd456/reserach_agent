@@ -17,6 +17,14 @@ other/                    # 原始任务文件与其他资料
 | 专题 | 研究日期 | 入口 | 简介 |
 |---|---|---|---|
 | agent_harness | 2026-11-13 | [Knowledge/agent_harness/README.md](Knowledge/agent_harness/README.md) | 五个在面岗位（Mercor ×3、Mirendil、Resolution）所需的 agent harness、评估、post-training 与 scalable oversight 知识，含共用 harness 练习与口述自测 |
+| grading | 2026-11-14 | [Knowledge/grading/README.md](Knowledge/grading/README.md) | 判分逻辑的三层结构、strict／loose、unknown 与解析失败、LLM judge 的偏差与验证；含可运行的报告判分器与 grader audit |
+| task_dataset_design | 2026-11-14 | [Knowledge/task_dataset_design/README.md](Knowledge/task_dataset_design/README.md) | 从能力声明到任务、fixture、隐藏 verifier 与任务审计；含一个可运行的训练 bug 任务 |
+| trace_viewer | 2026-11-14 | [Knowledge/trace_viewer/README.md](Knowledge/trace_viewer/README.md) | 日志标准化、调用与返回配对、静态 viewer 的状态与渲染；含单文件页面草图 |
+| training_eval_diagnostics | 2026-11-14 | [Knowledge/training_eval_diagnostics/README.md](Knowledge/training_eval_diagnostics/README.md) | 可比性检查、配对比较、切片、从曲线下钻到样本；含合成日志与诊断脚本 |
+| agent_failure_investigation | 2026-11-14 | [Knowledge/agent_failure_investigation/README.md](Knowledge/agent_failure_investigation/README.md) | 让 agent 辅助调查大量 rollout：证据绑定与校验、工具 schema、对调查助手自身的评估 |
+| autoresearch_loop | 2026-11-14 | [Knowledge/autoresearch_loop/README.md](Knowledge/autoresearch_loop/README.md) | 读懂一个自动实验项目的真实机制，设计并验证范围明确的改动；含 CPU 上的 runner 草图 |
+
+后六个专题共同服务于 Mirendil Model Evaluation take-home 的准备，总览与学习顺序见 [Companies/Mirendil.md §5](Companies/Mirendil.md#5-take-home-准备六个专题)。它们是可能的题型方向，不是已知考题。
 
 ## 新专题的约定
 

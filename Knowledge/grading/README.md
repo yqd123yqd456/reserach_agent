@@ -32,6 +32,8 @@
 | unknown | grader 无法判定（judge 没给出可解析的结论，或依赖的前置检查失败）。**不等于 fail，也不等于 pass** | 结果表解析失败后，依赖它的检查都是 unknown |
 | error | grader 自身在这一项上出错（例如解析不了输出格式） | 表格里写了 “about 0.94” |
 
+与 [agent_harness 的 CheckResult](../../Practice/agent_harness/00_共用harness规格.md#22-核心对象) 的关系：那里的 `passed` 是布尔值，适合状态与约束这类总能判定的检查；本专题把它扩展成四值的 `status`，并加上 `required`，因为开放判断和解析会出现“判不了”。
+
 ## 3. 贯穿例子：判一份实验报告
 
 任务：agent 修复训练 bug 后提交实验报告（任务定义见 [task_dataset_design](../task_dataset_design/README.md)）。标准：格式（三个必需章节）、数字与运行日志一致、不挑选性报告、均值正确、不夸大、提到 baseline 与 seed、论证质量。
