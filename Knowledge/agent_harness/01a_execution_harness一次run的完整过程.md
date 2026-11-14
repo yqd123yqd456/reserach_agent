@@ -76,7 +76,7 @@ history 在第 4 次模型调用时是 `user, assistant(call_1), tool(call_1), a
 | 终止原因 | 触发 | `valid` | 计入成功率分母 | 例子 |
 |---|---|---|---|---|
 | `final` | 模型返回无 tool call 的消息 | 是 | 是 | S1 |
-| `budget_model_calls` / `budget_tool_calls` / `budget_tokens` / `wall_clock` | 预算用尽 | 是 | 是，判失败 | F2：写接口持续 503，第 6 次模型调用时工具预算（5）耗尽 |
+| `budget_model_calls` / `budget_tool_calls` / `budget_tool_attempts` / `budget_tokens` / `wall_clock` | 预算用尽。`budget_tool_calls` 数已执行的调用；`budget_tool_attempts` 数模型提出的全部调用，包括参数无效、被 policy 拦截的（草图只实现了前三种） | 是 | 是，判失败 | F2：写接口持续 503，第 6 次模型调用时工具预算（5）耗尽。503 是任务中注入的故障，属于实验条件，所以仍是有效 run |
 | `too_many_tool_errors` | 连续或累计工具错误超限（τ²-bench 的 `max_errors`） | 是 | 是，判失败 | 反复传错参数 |
 | `context_exceeded` | 输入超出上下文窗口且无法压缩 | 是（属于 agent 行为后果） | 是 | 读了过大的文件 |
 | `model_api_error` | 供应商 API 错误（429、5xx、断连）且重试后仍失败 | 否 | 否，单列并补跑 | — |
@@ -90,7 +90,7 @@ history 在第 4 次模型调用时是 `user, assistant(call_1), tool(call_1), a
 def run(task, model, env, budget, policy, recorder):
     env.reset(task.fixture); recorder.snapshot("initial", env.state)
     history = [user_msg(task.instruction)]
-    n_model = n_tool = n_err = 0
+    n_model = n_tool = n_attempt = n_err = 0   # n_tool 数已执行的调用，n_attempt 数模型提出的全部调用
     while True:
         if n_model >= budget.max_model_calls: return end("budget_model_calls")
         try:
@@ -102,7 +102,8 @@ def run(task, model, env, budget, policy, recorder):
         if resp.stop_reason == "context_length": return end("context_exceeded")
         if not resp.tool_calls: return end("final")
         for call in resp.tool_calls:                    # 默认串行，保持模型给出的顺序
-            if n_tool >= budget.max_tool_calls:
+            n_attempt += 1                              # 无效与被拦截的调用也消耗预算，否则数量无上限
+            if n_tool >= budget.max_tool_calls or n_attempt > budget.max_tool_attempts:
                 result = error("budget_exhausted")      # 仍然回填，保证 id 一一对应
             elif (err := validate(call, task.tool_specs)): result = error("invalid_arguments", err)
             elif (rule := policy.check(call, env.state)): result = error("policy_blocked", rule)
@@ -111,6 +112,7 @@ def run(task, model, env, budget, policy, recorder):
             n_err += not result.ok
             history.append(tool_msg(call.id, result)); recorder.tool_event(call, result, env.state_hash())
         if n_tool >= budget.max_tool_calls: return end("budget_tool_calls")
+        if n_attempt > budget.max_tool_attempts: return end("budget_tool_attempts")
         if n_err >= budget.max_tool_errors: return end("too_many_tool_errors")
     # end(): recorder.snapshot("final", env.state); 写 audit、events、run.json；不在这里判分
 ```
@@ -124,7 +126,7 @@ def run(task, model, env, budget, policy, recorder):
 | 超时 | 模型调用和工具调用分别设超时；工具超时返回 `error(timeout)` 给模型；另设整个 run 的墙钟上限 | 超时太紧会把基础设施慢判成 agent 失败 |
 | 重试 | **模型 API**：在 adapter 内对 429/5xx 做有限次退避重试，不计入 agent 预算，但记录次数。**工具**：harness 默认不自动重试，让 agent 决定；若要自动重试，只对幂等的读操作，并单独记录 | 自动重试写操作可能造成双写（[03](03_故障注入与恢复.md)）。harness 重试与 agent 重试必须在 trace 中区分 |
 | 取消 | run 级取消（用户中止或墙钟超时）：停止发起新调用，尚未完成的调用记为 `cancelled`，仍按 id 回填，再写快照 | 取消时正在进行的写操作是否生效，取决于工具实现，必须在快照中如实反映 |
-| 预算 enforcement | 计数在 runner 里，执行前检查；超出后剩余调用返回 `budget_exhausted` | 预算是任务定义的一部分。改预算就是换了一个实验条件 |
+| 预算 enforcement | 计数在 runner 里，执行前检查；已执行的调用与模型提出的全部调用分别计数、分别设上限；超出后剩余调用返回 `budget_exhausted` | 预算是任务定义的一部分。改预算就是换了一个实验条件 |
 
 ## 7. 一个真实实现：怎样影响我们的设计
 

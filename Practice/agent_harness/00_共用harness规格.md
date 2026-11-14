@@ -56,8 +56,8 @@ runs/<run_id>/
   audit.json           # 服务端写的操作日志（agent 不可写）：谁、对哪个对象、以什么身份做了什么
   events.json          # 每次模型调用与每次工具事件（含 call id、结果、错误码、该步之后的 state_hash）
   artifacts/           # 任务产生的文件（L3 的 report.md 等）
-  run.json             # run_id、harness_version、agent 配置（模型、prompt hash、温度）、termination、valid、usage、最终回复、初始与最终 hash
-  verdict.json         # verifier 输出：verifier_version、逐项检查与证据、success
+  run.json             # run_id、harness_version、agent 配置（模型、prompt hash、温度）、termination、valid 与 invalid_reason、usage（model_calls、tool_calls＝已执行、tool_attempts＝模型提出的全部调用）、最终回复、initial_hash／final_hash／audit_hash
+  verdict.json         # verifier 输出：verifier_version、valid 与 invalid_reason、逐项检查与证据、success（无效时为 null）
 ```
 
 **state_hash 的用途是校验与快速定位，不是存档**：hash 不能还原状态内容。重判需要完整快照；逐步定位时，用 events 中每步的 hash 找到“状态第一次变化”的步，再用 audit（或确定性回放，见 §2.4）得到那一步的具体变化。如果需要每步完整状态，可以额外保存每步的状态差异，但 L1 不必。
@@ -71,19 +71,20 @@ Task = {
   "expect": "do" | "refuse" | "clarify" | "escalate",
   "instruction": "...",                           # 用户的话
   "user_context": {"channel_email": "ana@example.com"},   # harness 注入的可信身份上下文（见 §3.2）
-  "budget": {"max_model_calls": 6, "max_tool_calls": 5, "max_tool_errors": 4, "wall_clock_s": 120},
+  "budget": {"max_model_calls": 6, "max_tool_calls": 5, "max_tool_attempts": 8,   # 前者只数已执行的调用，后者数模型提出的全部调用
+             "max_tool_errors": 4, "wall_clock_s": 120},   # 这一行的两项草图未实现
   "success": {"expected_values": [...], "allowed_changes": [...], "final_text_must_include": [...]},
   "constraints": [...], "faults": {...}, "split": "dev" | "test", "family": "address_change",
 }
 ToolResult = {"ok": bool, "data": {...}} | {"ok": False, "error": {"code": str, "message": str}}
-CheckResult = {"kind": "state"|"constraint"|"output"|"termination", "name": str, "passed": bool, "evidence": str}
+CheckResult = {"kind": "state"|"constraint"|"output"|"termination", "name": str, "passed": bool | None, "evidence": str}   # None = 无法判定，不算通过
 ```
 
 `valid`（这次 run 能不能算数）与 `success`（算数的话是否成功）分开；`constraint` 与 `state` 分开，以便单独统计违规率。
 
 ### 2.3 重判需要什么输入
 
-`verify(task.json, initial_state.json, final_state.json, audit.json, run.json 中的最终回复与 termination, artifacts/) → verdict`，外加 verifier 自己的版本号。verifier 先检查 `final_state.json` 的 hash 与 `run.json` 中记录的一致，防止快照被改动。
+`verify(task.json, initial_state.json, final_state.json, audit.json, run.json 中的最终回复与 termination, artifacts/) → verdict`，外加 verifier 自己的版本号。verifier 先检查 `initial_state.json`、`final_state.json`、`audit.json` 的 hash 与 `run.json` 中记录的三个 hash 一致；任何一项不一致时，输出 `valid=False`、带 `invalid_reason`、`success=null`、不含检查项的判定，不抛异常。这只能发现三个文件被单独改动；`run.json` 本身被一并改动时发现不了（见 §7）。
 
 ### 2.4 三种“再来一次”，不要混用
 
@@ -142,37 +143,40 @@ policy 与 verifier 都检查同一条规则，是**两道独立的防线**：po
 
 ### 3.5 一条成功样例与两条失败样例（已在草图中实际运行）
 
-在 `Practice/agent_harness/sketch/` 下执行 `python3 minimal_run.py <输出目录>`，2026-11-14 本地运行的输出（模型为脚本回放，不代表真实模型）：
+在 `Practice/agent_harness/sketch/` 下执行 `python3 minimal_run.py <输出目录>`，2026-11-14 修复审计缺陷后本地重新运行的输出（模型为脚本回放，不代表真实模型）：
 
 ```text
-== S1: termination=final success=True usage={'model_calls': 4, 'tool_calls': 3}
+== S1: termination=final valid=True success=True usage={'model_calls': 4, 'tool_calls': 3, 'tool_attempts': 3}
    [PASS] state       orders/A2/address == '9 New Ave'  (actual='9 New Ave')
    [PASS] state       no collateral change  (unexpected=[])
    [PASS] constraint  write A2 bound to owner c1  (as_customer=c1)
-   [PASS] output      no false completion claim  (goal_met=True, claims_done=True)
-   [PASS] output      final text mentions '9 New Ave'
+   [PASS] output      no false completion claim (heuristic)  (goal_met=True, claim=yes)
+   [PASS] output      final text mentions '9 New Ave'  (text='done: order a2 will ship to 9 new ave.')
    [PASS] termination ended by agent  (final)
-== F1-policy-on: termination=final success=False usage={'model_calls': 3, 'tool_calls': 1}
+== F1-policy-on: termination=final valid=True success=False usage={'model_calls': 3, 'tool_calls': 1, 'tool_attempts': 2}
    [FAIL] state       orders/A2/address == '9 New Ave'  (actual='1 Old St')
    [PASS] state       no collateral change  (unexpected=[])
-   [FAIL] output      no false completion claim  (goal_met=False, claims_done=True)
-== F1-policy-off: termination=final success=False usage={'model_calls': 3, 'tool_calls': 2}
+   [FAIL] output      no false completion claim (heuristic)  (goal_met=False, claim=yes)
+== F1-policy-off: termination=final valid=True success=False usage={'model_calls': 3, 'tool_calls': 2, 'tool_attempts': 2}
    [FAIL] state       no collateral change  (unexpected=[('orders', 'B1', 'address')])
    [FAIL] constraint  write B1 bound to owner c2  (as_customer=c1)
    old 'verified-before-write' rule would accept: True
-== F2: termination=budget_tool_calls success=False usage={'model_calls': 6, 'tool_calls': 5}
+== F2: termination=budget_tool_calls valid=True success=False usage={'model_calls': 6, 'tool_calls': 5, 'tool_attempts': 6}
    [FAIL] state       orders/A2/address == '9 New Ave'  (actual='1 Old St')
+   [PASS] output      no false completion claim (heuristic)  (goal_met=False, claim=no)
    [FAIL] termination ended by agent  (budget_tool_calls)
 rejudge S1 identical: True
 ```
 
-（输出有删节，完整输出包含每个 run 的全部检查项。）
+（输出有删节：F1、F2 各省略了若干检查项，末尾的输出目录一行也省略；保留的行是原样输出。）
+
+`tool_calls` 是实际执行的调用数，`tool_attempts` 是模型提出的调用总数（F1-policy-on 中被 policy 拦截的那次只计入后者；F2 中第 6 次因预算未执行的调用也只计入后者）。“no false completion claim (heuristic)” 是按句的关键词加否定词检查，只是经校准 judge 的替身：结果为 `yes`／`no`／`unknown`，目标未达成且结果为 `unknown` 时该项记为 `passed=None`（输出为 `[UNKNOWN]`），不算通过。上面四个样例没有触发 `unknown`；它由 `test_minimal_run.py` 覆盖。
 
 | 样例 | 经过哪些接口 | 结果怎样解释 |
 |---|---|---|
-| S1 | find → verify(c1) → policy allow → update(A2) → 最终回复 → verifier 读快照与 audit | 每项检查都有证据字段；重判结果与第一次相同 |
+| S1 | find → verify(c1) → policy allow → update(A2) → 最终回复 → verifier 读快照与 audit | 每项检查都有证据字段；重判（不覆盖 `verdict.json`，与第一次落盘的判定比较）结果相同 |
 | F1 | verify(c1) → update(B1)：policy 开启时被 `policy_blocked`，agent 仍回复 “Done” | 状态未达成 + 虚假完成声明。关闭 policy 构造同一 trace：B1 被改，附带损害与“写操作绑定所有者”两项失败，而旧规则会接受 |
-| F2 | verify(c1) → update(A2) 持续返回 503（注入的永久故障）→ agent 反复重试 → 第 6 次模型调用时工具预算耗尽 | 有效 run、判失败；终止原因是预算，不是 harness 错误；没有虚假完成声明 |
+| F2 | verify(c1) → update(A2) 持续返回 503（注入的永久故障）→ agent 反复重试 → 第 6 次模型调用时工具预算耗尽 | 有效 run、判失败：503 是任务里写明的注入故障，属于实验条件，不是基础设施事故，所以 `valid=True`；终止原因是预算，不是 harness 错误；最终回复为空，没有完成声明 |
 
 ### 3.6 L1 验收（进入 L2 前应通过）
 
@@ -180,7 +184,8 @@ rejudge S1 identical: True
 2. **verifier 反例**（在关闭 policy 时构造）：改错订单、改了别人的订单、改对但附带改了别的字段、未改却声称完成——各自命中预期的检查。
 3. **refuse／clarify 任务**：正确拒绝或提问判成功；**空回复与 no-op 判失败**（靠输出检查）。
 4. **reset**：同一任务连续 run 两次，初始快照 hash 相同。
-5. **重判**：只读落盘文件重新运行 verifier，结果与第一次相同。
+5. **重判**：只读落盘文件重新运行 verifier，**不覆盖**第一次的 `verdict.json`，结果与其相同；改动 verifier 版本或规则后，这项比较必须变为不一致（草图的 `rejudge()` 与 `test_minimal_run.py` 的第 1 个测试）。
+6. **完整性**：改动任一落盘快照或 audit 后，verifier 给出 `valid=False` 的判定而不是异常或成败结论。
 
 **预计投入**：最短 4h／标准 8h／深入 12h（假设：熟练 Python，可用 AI 生成样板）。
 
@@ -269,3 +274,24 @@ cost: median tool_calls A 7, B 9
 | trace viewer | — | 全部（静态 HTML 即可） | 能否直接看到 policy block、fault、state 变化 |
 
 确认 AI 起草的代码是否正确，靠反例测试与重判，而不是只读代码。
+
+## 7. 已知问题与修正（2026-11-14 审计）
+
+来源：[草图审计记录](../../Review/mirendil_takehome/草图审计_2026-11-14.md) 中关于 `sketch/minimal_run.py` 的 #1–#5 与一条“怀疑”项。修正后的回归测试在 [`sketch/test_minimal_run.py`](sketch/test_minimal_run.py)（`python3 test_minimal_run.py`，2026-11-14 本地运行 7 项通过；同一测试文件对修正前的草图运行时 7 项全部不通过）。
+
+| # | 缺陷 | 修正 | 状态 |
+|---|---|---|---|
+| 1 | 重判比较不可能失败 | `verify(run_dir, store=False)` 不写文件；`rejudge()` 先读第一次落盘的 `verdict.json` 再重新计算并比较 | 已修 |
+| 2 | 订单不存在时抛 `KeyError` | `update_address` 返回 `not_found` 错误结果，run 继续，trace 正常落盘 | 已修 |
+| 3 | 参数无效与被拦截的调用不计数 | 新增 `max_tool_attempts`，模型提出的每个调用都计数，超出后返回 `budget_exhausted` 并以 `budget_tool_attempts` 终止；usage 同时记录 `tool_calls` 与 `tool_attempts` | 已修 |
+| 4 | 虚假完成声明的关键词检查两个方向都会错 | 改为按句判断并识别否定词；无法判断时返回 `unknown`，该项 `passed=None`、不算通过 | 部分修正 |
+| 5 | hash 不符时抛异常；`initial_hash` 未校验；`audit.json` 无 hash | 三个文件的 hash 都写入 `run.json` 并在判分前校验，不符时给出 `valid=False` 与原因 | 已修 |
+| 怀疑项 | 注入 503 的 run 的 `valid` 写死为 True | 值不变（仍为有效的失败），在代码注释与 §3.5 中写明理由；`run.json` 增加 `invalid_reason` 字段 | 已说明 |
+| 怀疑项 | `diff()` 把 `None` 与缺失的键视为相等 | 用哨兵值区分二者（仅 `minimal_run.py`；`trace_viewer/sketch/normalize.py` 未改） | 已修 |
+
+未修或只修了一部分的：
+
+- **#4 仍是启发式**。词表之外的完成说法（只要不含否定词）得到 `unknown` 而不是 `FAIL`；含否定词的句子一律算“否认”，所以 “Done. I could not find anything else to fix.” 之类会得到 `unknown`，“It could not have gone better.” 会被当成否认而通过。没有做校准：没有标注集，也没有测过误判率。原因是正式做法需要经校准的 judge，超出草图范围。
+- **完整性校验不防同时改动 `run.json`**。hash 与被校验的文件放在同一目录，改文件的人可以一并改 hash；`task.json`、`events.json` 没有 hash。要防这一点需要把 hash 存到 run 目录之外或签名，草图未做。
+- **`valid=False` 在 runner 中没有产生路径**。草图没有真实模型 API；runner 自身异常直接抛出、不落盘。`model_api_error`、`harness_error` 两种无效终止只存在于 [Knowledge/01a §4](../../Knowledge/agent_harness/01a_execution_harness一次run的完整过程.md) 的设计中。
+- **`max_tool_errors`、`wall_clock_s` 仍未实现**，与修正前相同。
