@@ -1,0 +1,198 @@
+{
+ "runs": [
+  {
+   "run_id": "A",
+   "kind": "pretrain",
+   "code_commit": "a1b2c3d",
+   "data_version": "corpus-v7",
+   "train_config": {
+    "lr": 0.0003,
+    "seed": 1
+   }
+  },
+  {
+   "run_id": "B",
+   "kind": "rl_posttrain",
+   "code_commit": "d4e5f6a",
+   "data_version": "envs-v2",
+   "train_config": {
+    "lr": 1e-06,
+    "reward": "visible_tests-v1",
+    "seed": 1
+   }
+  },
+  {
+   "run_id": "C",
+   "kind": "sft_posttrain",
+   "code_commit": "0f9e8d7",
+   "data_version": "sft-mix-v3",
+   "train_config": {
+    "lr": 1e-05,
+    "seed": 1
+   }
+  }
+ ],
+ "tasks": [
+  {
+   "task_id": "data-00",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-01",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-02",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-03",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-04",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-05",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-06",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-07",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-08",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "data-09",
+   "slice": "data_pipeline"
+  },
+  {
+   "task_id": "opti-00",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-01",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-02",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-03",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-04",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-05",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-06",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-07",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-08",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "opti-09",
+   "slice": "optimizer"
+  },
+  {
+   "task_id": "nume-00",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-01",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-02",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-03",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-04",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-05",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-06",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-07",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-08",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "nume-09",
+   "slice": "numerical_stability"
+  },
+  {
+   "task_id": "eval-00",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-01",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-02",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-03",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-04",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-05",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-06",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-07",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-08",
+   "slice": "eval_leakage"
+  },
+  {
+   "task_id": "eval-09",
+   "slice": "eval_leakage"
+  }
+ ],
+ "note": "SYNTHETIC teaching data, seed 20261114"
+}

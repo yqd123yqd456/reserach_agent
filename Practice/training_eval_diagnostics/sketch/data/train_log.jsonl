@@ -1,0 +1,12 @@
+{"run_id": "A", "step": 1000, "train_loss": 2.2088, "val_bpb": 0.9494}
+{"run_id": "A", "step": 2000, "train_loss": 2.0293, "val_bpb": 0.9034}
+{"run_id": "A", "step": 3000, "train_loss": 1.8572, "val_bpb": 0.8526}
+{"run_id": "A", "step": 4000, "train_loss": 1.6875, "val_bpb": 0.7991}
+{"run_id": "B", "step": 1000, "train_loss": 2.2029, "reward_mean": 0.425}
+{"run_id": "B", "step": 2000, "train_loss": 2.0497, "reward_mean": 0.5667}
+{"run_id": "B", "step": 3000, "train_loss": 1.8829, "reward_mean": 0.6167}
+{"run_id": "B", "step": 4000, "train_loss": 1.6962, "reward_mean": 0.65}
+{"run_id": "C", "step": 1000, "train_loss": 2.1857}
+{"run_id": "C", "step": 2000, "train_loss": 2.0422}
+{"run_id": "C", "step": 3000, "train_loss": 1.8639}
+{"run_id": "C", "step": 4000, "train_loss": 1.7059}
