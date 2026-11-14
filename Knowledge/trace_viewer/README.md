@@ -44,6 +44,7 @@ Inspect 中一次工具调用的三方关联：assistant 消息里的 `ToolCall.
 | `run-ok` | 三次工具调用，成功 | 正常轨迹长什么样 |
 | `run-wrong-order` | 验证了自己却去改别人的订单，被 policy 拦截后仍回复 “Done” | 从失败的检查找到出问题的调用；与成功 run 对比 |
 | `run-messy-log` | 日志写入顺序乱、输出被截断、同一结果记录两次、一个没有对应调用的结果、最后一个调用没有结果 | 不完整日志的处理 |
+| `run-audit-cases` | 2026-11-14 审计后加入的第 4 条：结果的时间戳早于调用、两个调用共用一个 call id、未知的事件类型、同一 call id 的两个结果内容不同、参数的键顺序与 `run-ok` 相反、文本含 `"Jerry" <b>` 这类字符 | 标准化与页面的边界情况（见 [Practice 的修正记录](../../Practice/trace_viewer/README.md#已知问题与修正2026-11-14-审计)） |
 
 原始事件（节选）：
 
@@ -58,7 +59,7 @@ Inspect 中一次工具调用的三方关联：assistant 消息里的 `ToolCall.
 
 ```json
 {"i": 2, "kind": "tool", "call_id": "c2", "name": "get_order", "args": {"order_id": "A2"},
- "status": "ok", "result": {"ok": true, "output": {"...": "..."}, "truncated": true},
+ "args_key": "{\"order_id\":\"A2\"}", "status": "ok", "result": {"ok": true, "output": {"...": "..."}, "truncated": true},
  "flags": ["truncated_output"]}
 ```
 
@@ -68,51 +69,85 @@ Inspect 中一次工具调用的三方关联：assistant 消息里的 `ToolCall.
 run-ok           success=True  term=final              steps=5   tool_errors=0 anomalies=[]
 run-wrong-order  success=False term=final              steps=4   tool_errors=1 anomalies=[]
 run-messy-log    success=False term=budget_tool_calls  steps=7   tool_errors=2 anomalies=['duplicate_result', 'missing_result', 'orphan_result', 'out_of_order_log', 'truncated_output']
-    step 2  tool          get_order        flags=['truncated_output']
-    step 4  tool          update_address   flags=['duplicate_result']
-    step 5  orphan_result                  flags=['orphan_result']
-    step 6  tool          update_address   flags=['missing_result']
+    step 2  tool             get_order        flags=['truncated_output']
+    step 4  tool             update_address   flags=['duplicate_result']
+    step 5  orphan_result                     flags=['orphan_result']
+    step 6  tool             update_address   flags=['missing_result']
+run-audit-cases  success=True  term=final              steps=11  tool_errors=1 anomalies=['ambiguous_pairing', 'conflicting_duplicate_result', 'duplicate_call_id', 'out_of_order_log', 'result_before_call', 'unknown_event_type']
+    step 3  tool             get_order        flags=['result_before_call']
+    step 4  tool             update_address   flags=['duplicate_call_id', 'ambiguous_pairing']
+    step 5  tool             update_address   flags=['duplicate_call_id', 'ambiguous_pairing']
+    step 6  ambiguous_result                  flags=['ambiguous_pairing']
+    step 7  ambiguous_result                  flags=['ambiguous_pairing']
+    step 8  unknown                           flags=['unknown_event_type']
+    step 9  tool             get_order        flags=['conflicting_duplicate_result']
 first divergence (tool-call index) run-ok vs run-wrong-order: 0
+first divergence (tool-call index) run-ok vs run-audit-cases: 2
 ```
 
 ## 4. 机制一：标准化（Python）
 
 ```python
 def normalize_run(run):
-    ordered = sorted(enumerate(run["events"]), key=lambda p: (p[1]["ts"], p[0]))   # 时间排序；原位置作次序
-    calls, steps, seen = {}, [], set()
-    for raw_idx, e in ordered:
+    events = run["events"]
+    # 第一遍：只按 call_id 归组，不看时间
+    calls, results = {}, {}                                   # call_id -> [(原始位置, 事件), ...]
+    for p in enumerate(events):
+        if p[1]["type"] == "tool_call":     calls.setdefault(p[1]["call_id"], []).append(p)
+        elif p[1]["type"] == "tool_result": results.setdefault(p[1]["call_id"], []).append(p)
+    # 第二遍：每个事件要么成为一步，要么并入它的调用
+    steps = []
+    for raw_idx, e in enumerate(events):
         if e["type"] == "tool_call":
-            step = {"kind": "tool", "call_id": e["call_id"], "status": "missing_result", "flags": ["missing_result"], ...}
-            calls[e["call_id"]] = step; steps.append(step)            # 先假定没有结果
+            step = {"kind": "tool", "call_id": ..., "args_key": args_key(e["args"]), "result": None, "flags": [], ...}
+            rs = sorted(results.get(e["call_id"], []), key=by_time)
+            if len(calls[e["call_id"]]) > 1:                  # call id 重复：不猜哪个结果属于谁
+                step["status"] = "ambiguous_pairing"; step["flags"] += ["duplicate_call_id", "ambiguous_pairing"]
+            elif not rs:
+                step["status"] = "missing_result"; step["flags"].append("missing_result")
+            else:
+                first, rest = rs[0], rs[1:]                   # 时间最早的结果为主结果
+                step["result"] = ...; step["status"] = "ok" if first["ok"] else "error"
+                if first["ts"] < e["ts"]: step["flags"].append("result_before_call")
+                # rest 中内容与 first 相同的 → duplicate_result；不同的 → 存入 extra_results，标 conflicting_duplicate_result
         elif e["type"] == "tool_result":
-            step = calls.get(e["call_id"])
-            if step is None: steps.append({"kind": "orphan_result", ...}); continue   # 孤儿：保留为独立一行
-            if e["call_id"] in seen: step["flags"].append("duplicate_result"); continue
-            seen.add(e["call_id"]); step["result"] = ...; step["status"] = "ok" if e["ok"] else "error"
-            step["flags"].remove("missing_result")
+            n = len(calls.get(e["call_id"], []))
+            if n == 1: continue                               # 已并入调用
+            step = {"kind": "orphan_result" if n == 0 else "ambiguous_result", "result": e, ...}   # 保留为独立一行
+        elif e["type"] in ("user", "assistant"): step = {"kind": e["type"], "text": ..., ...}
+        else: step = {"kind": "unknown", "event": e, "flags": ["unknown_event_type"], ...}       # 整条保留
+        steps.append(step)
+    steps.sort(key=lambda s: (s["ts"], s["raw_idx"]))         # 配对完成后才按时间排序；原位置作次序
     return {"run_id": ..., "success": ..., "anomalies": ..., "first_failed_check": ..., "steps": steps,
             "checks": run["verdict"]["checks"], "state_diff": diff(initial_state, final_state)}
 ```
 
+配对必须在排序之前。先按时间排序再逐条配对时，时间戳早于调用的结果会先被处理，变成孤儿结果，调用变成缺结果（2026-11-14 审计 #16，草图的旧版本就是这样）。
+
 | 日志问题 | 处理 | 理由 |
 |---|---|---|
-| 乱序 | 按时间戳排序，原始位置作为相同时间戳的次序；run 级打标 `out_of_order_log` | 排序后才能配对；保留标记让读者知道日志本身不可靠 |
+| 乱序 | 先按 call id 配对，再按时间戳排序，原始位置作为相同时间戳的次序；run 级打标 `out_of_order_log` | 配对不依赖顺序；保留标记让读者知道日志本身不可靠 |
 | 调用没有结果 | 状态 `missing_result` | 可能是 run 被中断，也可能是日志丢失；两者都要让人看见 |
 | 结果没有调用 | 单独一行 `orphan_result` | 丢弃会隐藏日志系统的 bug |
-| 结果重复 | 只取第一次，打标 `duplicate_result` | 不改变步数统计 |
+| 结果重复、内容相同 | 只取时间最早的一次，打标 `duplicate_result`，记下重复记录的原始位置 | 不改变步数统计 |
+| 结果重复、内容不同 | 时间最早的为主结果，其余存入 `extra_results`，打标 `conflicting_duplicate_result` | 不知道哪个是真的；丢掉任何一个都是在猜 |
+| 结果的时间戳早于调用 | 照常配对，打标 `result_before_call` | 多半是时钟或写入问题；调用与结果的对应关系仍然成立 |
+| 两个调用共用一个 call id | 两个调用都保留，打标 `duplicate_call_id` 与 `ambiguous_pairing`，都不挂结果；该 id 的结果各自成行（`ambiguous_result`） | id 已不能区分调用，按顺序分配结果是猜测 |
+| 未知的事件类型 | 保留为一步（`unknown`），打标 `unknown_event_type`，原始事件整条存入 | 标准化脚本不认识的不等于不重要 |
 | 输出被截断 | 保留截断标记 | 读者需要知道自己看到的不是全部（Inspect 的 `ToolEvent.truncated` 记录了截断范围） |
 
 原则：**标准化不丢信息、不猜测**。配不上的记录保留并打标。
 
-run 摘要（`success`、`termination`、调用数、错误数、异常标记、第一个失败的检查）在这一步算好，列表页只读摘要。
+run 摘要（`success`、`termination`、调用数、错误数、异常标记、第一个失败的检查）在这一步算好，列表页只读摘要。错误数 = 主结果失败的调用数 + 没能配对但标明失败的结果数。
+
+两处细节也放在这一层：参数的规范形式 `args_key`（键排序后的 JSON 字符串）在这里算一次，Python 与页面比较调用时都只比较它；`state_diff` 区分“键不存在”与“值为 null”（`op` 为 `added`／`removed`／`changed`）。测试在 [`test_normalize.py`](../../Practice/trace_viewer/sketch/test_normalize.py)。
 
 ## 5. 机制二：页面（静态 MVP）
 
 ### 5.1 页面草图
 
 ```text
-┌ 筛选[全部|失败|日志异常]  搜索[        ]  对比[run…]              2 / 3 runs ┐
+┌ 筛选[全部|失败|日志异常]  搜索[        ]  对比[run…]              4 / 4 runs ┐
 ├──────────────┬──────────────────────────────────────┬───────────────────────┤
 │ Runs         │ Timeline · run-wrong-order           │ 评分证据              │
 │ ▸ run-ok ✓   │ #0 user  I'm ana@…                   │ FAIL state  A2 address│
@@ -120,7 +155,7 @@ run 摘要（`success`、`termination`、调用数、错误数、异常标记、
 │   ✗ A2 addr  │ #2 update_address(B1…) error         │ FAIL output false claim│
 │ ▸ run-messy… │    policy_blocked: identity_not_…    │ 状态变化 初始→最终    │
 │   5 日志异常 │ #3 assistant  Done: …                │ /session/verified… → c1│
-│              │                                      │ 选中的步骤（JSON）    │
+│ ▸ run-audit… │                                      │ 选中的步骤（JSON）    │
 └──────────────┴──────────────────────────────────────┴───────────────────────┘
 ```
 
@@ -135,14 +170,14 @@ run 摘要（`success`、`termination`、调用数、错误数、异常标记、
 | 详情 | 选中的 run 与步骤 | 评分证据表、状态变化表、步骤 JSON | `renderDetail()` |
 | 事件处理 | 用户操作 | 只修改 `state`，然后调用 `render()` | 文件末尾的几行 |
 
-整个页面是一个单文件 [`viewer.html`](../../Practice/trace_viewer/sketch/viewer.html)，约 130 行原生 JavaScript，没有构建步骤、没有后端；数据由 `normalize.py` 写成 `data.js` 后直接加载（`file://` 下不能用 `fetch` 读本地 JSON，所以用 `<script src="data.js">`）。
+整个页面是一个单文件 [`viewer.html`](../../Practice/trace_viewer/sketch/viewer.html)，整个文件约 160 行，其中原生 JavaScript 约 110 行，没有构建步骤、没有后端；数据由 `normalize.py` 写成 `data.js` 后直接加载（`file://` 下不能用 `fetch` 读本地 JSON，所以用 `<script src="data.js">`）。
 
 ### 5.3 前端概念，用 Python 对照
 
 | 前端概念 | Python 对照 | 草图中的例子 | Inspect viewer 中的例子（TypeScript，commit `818ce81`，代码已读） |
 |---|---|---|---|
 | 组件 | 一个函数：输入数据，返回界面描述 | `renderRuns(list)` 返回 HTML 字符串 | `ToolEventView`（`ToolEventView.tsx` L97） |
-| props | 函数的参数 | `stepRow(s, selected, diverge)` | `ToolEventViewProps` |
+| props | 函数的参数 | `stepRow(s, selected, diverge, selectable)` | `ToolEventViewProps` |
 | 状态（state） | 一个 dict；改了它就重新渲染 | `state` 对象 + `render()` | zustand store（`apps/inspect/src/state/store.ts` L77–L120），只放界面状态（筛选条件、折叠了哪些事件） |
 | 派生数据 | 由状态算出的值，不单独保存；可以用缓存 | `visibleRuns()` 每次重算 | `useFilteredSamples`（`state/hooks.ts` L362–L411），带缓存（相当于 `functools.lru_cache`） |
 | 事件处理 | 回调函数 | `onclick` 里改 `state` 再 `render()` | 组件的 `onRowOpen` 等回调 |
@@ -157,9 +192,9 @@ run 摘要（`success`、`termination`、调用数、错误数、异常标记、
 | 需求 | 草图的做法 | 大规模时怎么办（Inspect 的做法） |
 |---|---|---|
 | 长轨迹 | 调用与返回合成一行；长文本截到 90 字符，完整内容在详情栏 | 事件按 span 建树，成功的普通工具调用默认折叠（`transform/collapse.ts` L23–L39）；折叠节点的子节点不进入可见行（`transform/flatten.ts` L57–L112）；虚拟列表 |
-| 搜索 | 在每步的 JSON 文本里做子串匹配，筛选 run 并高亮 | 在数据上搜索而不是在页面上搜索，因为屏幕外的行不在页面里（`search/sampleSearch.ts` L82，按事件 id 记录命中） |
+| 搜索 | 在每条 run 的所有**值**里做子串匹配（步骤、检查项名称与证据、状态变化；不含 JSON 键名），筛选 run 并高亮。高亮在原始文本上做：按命中切开，各段分别转义，再给命中段加 `<mark>` | 在数据上搜索而不是在页面上搜索，因为屏幕外的行不在页面里（`search/sampleSearch.ts` L82，按事件 id 记录命中） |
 | 证据定位 | 列表显示第一个失败的检查；详情栏同屏显示检查、证据、状态变化 | `ScoreEventView` 显示答案与解释 |
-| 双 run 比较 | 并排两栏；按“工具名 + 参数”比较调用序列，标出第一次不同的位置 | — |
+| 双 run 比较 | 并排两栏；按“工具名 + 参数的规范形式 `args_key`”比较调用序列，标出第一次不同的位置。右栏只读，选步骤只在左栏 | — |
 
 **比较的局限**：两条 run 走了不同但都合法的路径时，“第一次不同”不等于“出错的地方”（见 [agent_harness 04 §3](../agent_harness/04_失败诊断与受控重跑.md#3-不要假定只有一条标准轨迹)）。它是定位的起点。
 
@@ -207,7 +242,7 @@ OpenTelemetry 的 GenAI 语义约定把工具执行表示为一个 span，名称
 
 | # | 操作 | 期望 | 草图是否通过（无头浏览器实测） |
 |---|---|---|---|
-| 1 | 打开页面 | 列出 3 条 run，各有成功／失败标记 | 通过（3 条） |
+| 1 | 打开页面 | 列出 4 条 run，各有成功／失败标记 | 通过（4 条） |
 | 2 | 筛选“失败” | 剩 2 条 | 通过 |
 | 3 | 打开 `run-messy-log` | 7 步；能看到截断、重复、孤儿、缺失结果的标记 | 通过 |
 | 4 | 点击没有结果的那次调用 | 详情显示 `missing_result` | 通过 |
@@ -215,12 +250,16 @@ OpenTelemetry 的 GenAI 语义约定把工具执行表示为一个 span，名称
 | 6 | 搜索 `policy_blocked` | 只剩 1 条 run，命中处高亮 | 通过 |
 | 7 | 选 `run-wrong-order`，对比 `run-ok` | 双栏显示，标出首个不同的调用 | 通过 |
 | 8 | 页面脚本错误 | 无 | 通过 |
+| 9 | 对比时点击右栏的步骤 | 不选中任何步骤；点击左栏选中左侧 run 自己的步骤 | 通过 |
+| 10 | 搜索 `t`；搜索 `"Jerry"`、`<b>`、`&` | 页面文本里不出现字面的 `&quot;`、`&lt;` 等；带特殊字符的查询只剩 1 条 run，命中处高亮 | 通过 |
+| 11 | 打开 `run-audit-cases`；对比 `run-ok` | 11 步；能看到 `result_before_call`、`duplicate_call_id`、`ambiguous_pairing`、`unknown_event_type`、`conflicting_duplicate_result`；首个不同的位置是 2（参数键顺序不同不算） | 通过 |
+| 12 | 搜索 `flags`、`email`（只是键名）；搜索 `collateral`、`claims_done`（检查项名称、证据） | 键名：0 条；检查项名称：3 条；证据：1 条 | 通过 |
 
-检查脚本：[`check_viewer.js`](../../Practice/trace_viewer/sketch/check_viewer.js)。它对上表的预期值做断言，不符或出现页面脚本异常时以非零状态退出。
+检查脚本：[`check_viewer.js`](../../Practice/trace_viewer/sketch/check_viewer.js)。它对上表的预期值做断言（2026-11-14 修复后共 46 条），不符或出现页面脚本异常时以非零状态退出。第 9–12 行是审计后加的；其中 #19、#20 的断言在修复前的页面上失败。
 
 ## 9. 局限
 
-- 数据是 3 条合成 run；没有在真实的长轨迹上试过，性能与折叠策略未验证。
+- 数据是 4 条合成 run；没有在真实的长轨迹上试过，性能与折叠策略未验证。
 - 草图的原始格式是自定义的。真实题目的格式不同，标准化脚本需要重写，但配对与打标的逻辑可以复用。
 - 没有 span 嵌套、没有每步的状态快照（只有初始与最终的差异）、没有 artifact 查看。
 - 搜索是子串匹配；双 run 比较只比较工具调用序列。
