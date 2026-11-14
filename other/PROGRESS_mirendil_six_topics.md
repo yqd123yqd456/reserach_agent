@@ -14,7 +14,7 @@
 - [x] task_dataset_design（完成，草图已运行）
 - [x] trace_viewer（完成；标准化已运行，页面经无头浏览器实测）
 - [x] training_eval_diagnostics（完成，合成数据上已运行）
-- [ ] agent_failure_investigation
+- [x] agent_failure_investigation（完成，合成数据上已运行；无真实 agent）
 - [ ] autoresearch_loop
 - [ ] 入口与根 README、统一审查、链接检查
 

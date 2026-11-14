@@ -1,0 +1,18 @@
+[
+ {"finding_id": "F-1", "category": "model", "root_cause": "wrong_order_after_verify", "run_ids": ["r04", "r05"], "status": "confirmed",
+  "claim": "agent 改错了订单", "evidence": [{"run_id": "r04", "step": 2, "quote": "\"order_id\": \"B1\""}],
+  "competing_hypotheses": [], "proposed_check": ""},
+ {"finding_id": "F-2", "category": "environment", "root_cause": "orders_503", "run_ids": ["r06", "r07", "r08"], "status": "confirmed",
+  "claim": "订单服务不可用导致三条 run 失败",
+  "evidence": [{"run_id": "r06", "step": 2, "quote": "503 upstream connect error"}, {"run_id": "r08", "step": 2, "quote": "503 upstream connect error"}],
+  "competing_hypotheses": [], "proposed_check": ""},
+ {"finding_id": "F-3", "category": "environment", "root_cause": "orders_503", "run_ids": ["r06"], "status": "confirmed",
+  "claim": "r06 中更新地址的调用连续失败", "evidence": [{"run_id": "r06", "step": 3, "quote": "unavailable"}],
+  "competing_hypotheses": [], "proposed_check": ""},
+ {"finding_id": "F-4", "category": "model", "root_cause": "write_before_verify", "run_ids": ["r14"], "status": "confirmed",
+  "claim": "agent 未验证身份就尝试写入，任务失败", "evidence": [{"run_id": "r14", "step": 1, "quote": "policy_blocked"}],
+  "competing_hypotheses": [], "proposed_check": ""},
+ {"finding_id": "F-5", "category": "model", "root_cause": "wrong_address_string", "run_ids": ["r12", "r13"], "status": "confirmed",
+  "claim": "agent 写入的地址与期望不符", "evidence": [{"run_id": "r12", "step": "checks", "quote": "actual='9 New Ave'"}],
+  "competing_hypotheses": [], "proposed_check": ""}
+]

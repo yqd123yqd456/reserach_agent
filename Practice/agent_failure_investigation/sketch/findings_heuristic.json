@@ -1,0 +1,155 @@
+[
+ {
+  "finding_id": "H-1",
+  "category": "model",
+  "root_cause": "blocked_then_claimed_done",
+  "run_ids": [
+   "r04",
+   "r05"
+  ],
+  "claim": "写操作被 policy 拦截后，agent 仍声称完成",
+  "evidence": [
+   {
+    "run_id": "r04",
+    "step": 2,
+    "quote": "policy_blocked"
+   },
+   {
+    "run_id": "r04",
+    "step": 3,
+    "quote": "Done: the order will"
+   },
+   {
+    "run_id": "r05",
+    "step": 2,
+    "quote": "policy_blocked"
+   },
+   {
+    "run_id": "r05",
+    "step": 3,
+    "quote": "Done: the order will"
+   }
+  ],
+  "status": "confirmed",
+  "competing_hypotheses": [],
+  "proposed_check": "同一任务重复运行，看是否稳定复现"
+ },
+ {
+  "finding_id": "H-2",
+  "category": "environment",
+  "root_cause": "infra_unavailable",
+  "run_ids": [
+   "r06",
+   "r07"
+  ],
+  "claim": "写操作持续返回 unavailable；环境记录中有对应故障",
+  "evidence": [
+   {
+    "run_id": "r06",
+    "step": 2,
+    "quote": "503 upstream connect error"
+   },
+   {
+    "run_id": "r07",
+    "step": 2,
+    "quote": "503 upstream connect error"
+   }
+  ],
+  "status": "confirmed",
+  "competing_hypotheses": [],
+  "proposed_check": "故障恢复后重跑同一任务"
+ },
+ {
+  "finding_id": "H-3",
+  "category": "harness",
+  "root_cause": "invalid_arguments_vs_spec",
+  "run_ids": [
+   "r08",
+   "r09"
+  ],
+  "claim": "agent 按给它的工具说明传参，工具却拒绝该参数名",
+  "evidence": [
+   {
+    "run_id": "r08",
+    "step": 2,
+    "quote": "unexpected arguments ['address']; expected ['order_id', 'new_address']"
+   },
+   {
+    "run_id": "r08",
+    "step": "checks",
+    "quote": "\"params\": [\"order_id\", \"address\"]"
+   },
+   {
+    "run_id": "r09",
+    "step": 2,
+    "quote": "unexpected arguments ['address']; expected ['order_id', 'new_address']"
+   },
+   {
+    "run_id": "r09",
+    "step": "checks",
+    "quote": "\"params\": [\"order_id\", \"address\"]"
+   }
+  ],
+  "status": "confirmed",
+  "competing_hypotheses": [],
+  "proposed_check": "修正工具说明后重跑"
+ },
+ {
+  "finding_id": "H-4",
+  "category": "task_or_grader",
+  "root_cause": "task_T3_all_models_fail",
+  "run_ids": [
+   "r10",
+   "r11"
+  ],
+  "claim": "任务 T3 上所有模型都失败；规则无法区分题目问题与 grader 问题",
+  "evidence": [
+   {
+    "run_id": "r10",
+    "step": "checks",
+    "quote": "actual='1 Old St'"
+   },
+   {
+    "run_id": "r11",
+    "step": "checks",
+    "quote": "actual='1 Old St'"
+   }
+  ],
+  "status": "uncertain",
+  "competing_hypotheses": [
+   "任务指令缺少必要信息",
+   "grader 的期望值与指令不一致",
+   "两个模型恰好都不会"
+  ],
+  "proposed_check": "人工对照指令与检查项；用 oracle 解运行 verifier"
+ },
+ {
+  "finding_id": "H-5",
+  "category": "task_or_grader",
+  "root_cause": "task_T4_all_models_fail",
+  "run_ids": [
+   "r12",
+   "r13"
+  ],
+  "claim": "任务 T4 上所有模型都失败；规则无法区分题目问题与 grader 问题",
+  "evidence": [
+   {
+    "run_id": "r12",
+    "step": "checks",
+    "quote": "actual='9 New Ave'"
+   },
+   {
+    "run_id": "r13",
+    "step": "checks",
+    "quote": "actual='9 New Ave'"
+   }
+  ],
+  "status": "uncertain",
+  "competing_hypotheses": [
+   "任务指令缺少必要信息",
+   "grader 的期望值与指令不一致",
+   "两个模型恰好都不会"
+  ],
+  "proposed_check": "人工对照指令与检查项；用 oracle 解运行 verifier"
+ }
+]

@@ -1,0 +1,31 @@
+{
+ "category": {
+  "r01": "none",
+  "r02": "none",
+  "r03": "none",
+  "r14": "none",
+  "r04": "model",
+  "r05": "model",
+  "r06": "environment",
+  "r07": "environment",
+  "r08": "harness",
+  "r09": "harness",
+  "r10": "task",
+  "r11": "task",
+  "r12": "grader",
+  "r13": "grader"
+ },
+ "root_cause": {
+  "r04": "wrong_order_after_verify",
+  "r05": "wrong_order_after_verify",
+  "r06": "orders_503",
+  "r07": "orders_503",
+  "r08": "tool_spec_param_mismatch",
+  "r09": "tool_spec_param_mismatch",
+  "r10": "T3_missing_order_id",
+  "r11": "T3_missing_order_id",
+  "r12": "T4_expected_string_mismatch",
+  "r13": "T4_expected_string_mismatch"
+ },
+ "note": "SYNTHETIC planted faults"
+}
