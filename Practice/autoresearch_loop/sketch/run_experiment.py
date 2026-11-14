@@ -9,15 +9,31 @@ SUMMARY_KEYS = ("val_bpb", "training_seconds", "total_seconds", "peak_vram_mb", 
 def sha256(path):
     return hashlib.sha256(open(path, "rb").read()).hexdigest()[:16] if os.path.exists(path) else None
 
+IS_WINDOWS = os.name == "nt"
+
+def _popen(cmd, log):
+    """让子进程成为新进程组／会话的组长，这样超时时可以连同它的子进程一起终止。"""
+    if IS_WINDOWS:   # 未在 Windows 上实测；见 README 的平台说明
+        return subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+    return subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+
+def _kill_tree(p):
+    """终止进程及其所有子进程。POSIX：杀进程组。Windows：taskkill /T（进程树）/F（强制）。"""
+    if IS_WINDOWS:
+        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        try: os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError: pass          # 进程在超时判定与发信号之间已经退出
+
 def run(cmd: list[str], timeout_s: float, log_path: str):
-    """运行并把输出写入日志；超时杀掉整个进程组。返回 (returncode, timed_out, wall_seconds)。"""
+    """运行并把输出写入日志；超时终止整个进程树。返回 (returncode, timed_out, wall_seconds)。"""
     t0 = time.time()
     with open(log_path, "w") as log:
-        p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        p = _popen(cmd, log)
         try:
             rc, timed_out = p.wait(timeout=timeout_s), False
         except subprocess.TimeoutExpired:
-            os.killpg(p.pid, signal.SIGKILL); p.wait(); rc, timed_out = p.returncode, True
+            _kill_tree(p); p.wait(); rc, timed_out = p.returncode, True
     return rc, timed_out, round(time.time() - t0, 2)
 
 def parse_summary(text: str) -> dict:
@@ -35,7 +51,7 @@ def parse_summary(text: str) -> dict:
 def classify(text: str, rc: int, timed_out: bool, metrics: dict) -> tuple[str, str]:
     """A：把一次运行的结局归类。返回 (status, reason)。顺序即优先级。"""
     if timed_out: return "timeout", "killed after wall-clock limit"
-    if rc in (130, -signal.SIGINT) or "KeyboardInterrupt" in text: return "interrupted", "SIGINT / KeyboardInterrupt"
+    if rc in (130, -int(signal.SIGINT)) or "KeyboardInterrupt" in text: return "interrupted", "SIGINT / KeyboardInterrupt"
     if re.search(r"out of memory|OutOfMemoryError", text, flags=re.I): return "oom", "out-of-memory message in log"
     if rc != 0 and re.search(r"^FAIL$", text, flags=re.M): return "nan_loss", "training loss NaN or > 100 (train.py fast-fail)"
     if rc != 0: return "crash", (text.strip().splitlines() or ["no output"])[-1][:120]

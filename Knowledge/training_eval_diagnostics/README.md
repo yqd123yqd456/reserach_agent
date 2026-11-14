@@ -58,7 +58,7 @@
 ```text
 val_bpb      step 1000 -> 4000: 0.9494 -> 0.7991
 indep pass rate by checkpoint: {1000: 0.425, 2000: 0.458, 3000: 0.45, 4000: 0.633}
-comparability step 1000 vs 4000: ["grader_version differs: ['grader-v1'] vs ['grader-v2']"]
+comparability step 1000 vs 4000: [version_mismatch/BLOCKING] grader_version: ['grader-v1'] vs ['grader-v2']
 paired diff (step 3000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.025, 'ci95': (-0.083, 0.133)}
 ```
 
@@ -99,7 +99,7 @@ reward-only passes at step 4000 by output note: {'special-cases the visible test
 
 ```text
 indep pass rate by checkpoint: {1000: 0.408, 2000: 0.425, 3000: 0.5, 4000: 0.525}
-comparability step 1000 vs 2000: ["last: 8/120 invalid trials (['sandbox_unavailable']) concentrated in ['optimizer']"]
+comparability step 1000 vs 2000: [invalid_trials] last: 8/120 invalid trials (['sandbox_unavailable']) concentrated in ['optimizer']
 paired diff (step 4000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.117, 'ci95': (0.008, 0.225)}
   slice eval_leakage         {'n_tasks': 10, 'diff': 0.233, 'ci95': (0.033, 0.4)}  <-- improvement
   slice numerical_stability  {'n_tasks': 10, 'diff': -0.167, 'ci95': (-0.3, -0.033)}  <-- regression
@@ -131,11 +131,21 @@ largest per-task drops: [('nume-08', -0.67), ...]
 7. 假设与干预：每个解释写出支持它的观察与能否证伪它的实验
 ```
 
-关键伪代码（完整实现见草图，约 90 行）：
+**可比性问题怎样处置**（由问题的类型与 `blocking` 字段决定，不靠匹配错误文字）：
+
+| 问题类型 | 处置 | 理由 |
+|---|---|---|
+| suite 或 grader 版本不同 | **停止比较**这一对 checkpoint | 分数不是同一把尺子量的；要比较先重判 |
+| 任务集合不同 | 只在**共同任务**上比较，并在结果里写明共同任务数与各自独有的任务；共同任务不足 80% 时停止 | 少量任务增减时交集仍有意义，但必须让读者知道比较的不是全集 |
+| 存在无效试验 | 不停止；报告数量、原因、集中的切片 | 是否有偏取决于它们集中在哪 |
+
+80% 是草图里的默认值，没有理论依据；真实项目按任务集的构成来定。
+
+关键伪代码（完整实现见草图）：
 
 ```python
 def task_rates(records):                 # 每任务在有效试验上的通过率；没有有效试验的任务不当作 0
-def comparability(first, last):          # 返回问题列表：版本不同、任务集不同、无效试验及其集中的切片
+def comparability(first, last):          # 返回结构化问题列表 [{"type", "blocking", "detail"}]
 def paired(a, b, tasks, n_boot=2000):    # 同任务配对差；以任务为单位重采样得到区间
 ```
 

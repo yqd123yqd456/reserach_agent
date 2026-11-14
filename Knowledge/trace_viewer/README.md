@@ -216,7 +216,7 @@ OpenTelemetry 的 GenAI 语义约定把工具执行表示为一个 span，名称
 | 7 | 选 `run-wrong-order`，对比 `run-ok` | 双栏显示，标出首个不同的调用 | 通过 |
 | 8 | 页面脚本错误 | 无 | 通过 |
 
-检查脚本：[`check_viewer.js`](../../Practice/trace_viewer/sketch/check_viewer.js)。
+检查脚本：[`check_viewer.js`](../../Practice/trace_viewer/sketch/check_viewer.js)。它对上表的预期值做断言，不符或出现页面脚本异常时以非零状态退出。
 
 ## 9. 局限
 

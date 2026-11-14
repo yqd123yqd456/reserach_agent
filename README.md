@@ -24,7 +24,7 @@ other/                    # 原始任务文件与其他资料
 | agent_failure_investigation | 2026-11-14 | [Knowledge/agent_failure_investigation/README.md](Knowledge/agent_failure_investigation/README.md) | 让 agent 辅助调查大量 rollout：证据绑定与校验、工具 schema、对调查助手自身的评估 |
 | autoresearch_loop | 2026-11-14 | [Knowledge/autoresearch_loop/README.md](Knowledge/autoresearch_loop/README.md) | 读懂一个自动实验项目的真实机制，设计并验证范围明确的改动；含 CPU 上的 runner 草图 |
 
-后六个专题共同服务于 Mirendil Model Evaluation take-home 的准备，总览与学习顺序见 [Companies/Mirendil.md §5](Companies/Mirendil.md#5-take-home-准备六个专题)。它们是可能的题型方向，不是已知考题。
+后六个专题共同服务于 Mirendil Model Evaluation take-home 的准备，总览与学习顺序见 [Companies/Mirendil.md §5](Companies/Mirendil.md#5-take-home-准备六个专题)。它们是可能的题型方向，不是已知考题。 跨专题的执行指南见 [Review/mirendil_takehome/执行指南.md](Review/mirendil_takehome/执行指南.md)。
 
 ## 新专题的约定
 

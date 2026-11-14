@@ -1,4 +1,5 @@
-// 用无头浏览器实际加载 viewer.html，走一遍用户 journey 并断言。运行：node check_viewer.js
+// 用无头浏览器实际加载 viewer.html，走一遍用户 journey 并断言；任何断言失败或页面脚本异常都以非零状态退出。
+// 运行：node check_viewer.js [截图路径]
 const { chromium } = require('playwright');
 const path = require('path');
 (async () => {
@@ -26,6 +27,20 @@ const path = require('path');
   out.diverge_rows = await page.locator('#timeline .row.diverge').count();
   await page.screenshot({ path: process.argv[2] || 'viewer_check.png' });
   out.page_errors = errors;
-  console.log(JSON.stringify(out, null, 1));
   await browser.close();
-})();
+  // 预期值来自 raw_traces.json 的构造：3 条 run，2 条失败；run-messy-log 有 7 步与 4 种步骤级异常标记
+  const expected = {
+    runs_all: 3, runs_failed: 2, steps_messy: 7, detail_has_missing: true, failed_checks: 2,
+    runs_after_search: 1, marks: 1, diverge_rows: 2, page_errors: [],
+  };
+  const failures = [];
+  for (const [k, want] of Object.entries(expected)) {
+    if (JSON.stringify(out[k]) !== JSON.stringify(want)) failures.push(`${k}: expected ${JSON.stringify(want)}, got ${JSON.stringify(out[k])}`);
+  }
+  for (const flag of ['truncated_output', 'duplicate_result', 'orphan_result', 'missing_result']) {
+    if (!out.flag_badges.includes(flag)) failures.push(`flag badge missing: ${flag}`);
+  }
+  console.log(JSON.stringify(out, null, 1));
+  if (failures.length) { console.error('CHECK FAILED:\n  ' + failures.join('\n  ')); process.exit(1); }
+  console.log('CHECK PASSED: ' + (Object.keys(expected).length + 4) + ' assertions');
+})().catch(e => { console.error('CHECK ERROR: ' + e); process.exit(1); });

@@ -13,13 +13,21 @@ cd Practice/autoresearch_loop/sketch
 python3 demo.py
 ```
 
-约 5 秒（其中 2 秒是等待“挂起”的替身被超时杀掉）。输出见 [Knowledge §4](../../Knowledge/autoresearch_loop/README.md#4-三个改动方向)；每次运行的日志在 `logs/`，记录在 `results.jsonl`。
+约 5 秒（其中 2 秒是等待“挂起”的替身被超时杀掉）。
+
+```bash
+python3 test_kill_tree.py
+```
+
+这条验证超时会终止整个进程树：替身再启动一个孙进程，超时后孙进程必须不再运行。
+
+**平台**：在 Linux 上实测通过（macOS 与 WSL 走同一条 POSIX 路径，未单独测）。原生 Windows 走另一个分支（`CREATE_NEW_PROCESS_GROUP` + `taskkill /T /F`），**代码已写，未在 Windows 上实测**；在 Windows 上使用前先运行 `test_kill_tree.py`。上游 autoresearch 本身需要 CUDA 与 Linux 环境。输出见 [Knowledge §4](../../Knowledge/autoresearch_loop/README.md#4-三个改动方向)；每次运行的日志在 `logs/`，记录在 `results.jsonl`。
 
 ## 2. 草图覆盖了什么
 
 | 方向 | 函数 | 已验证的行为 |
 |---|---|---|
-| A 失败识别 | `run()`、`classify()` | 超时后杀掉进程组；8 种状态的分类；只解析 `---` 之后的摘要块 |
+| A 失败识别 | `run()`、`classify()` | 超时后终止整个进程树（POSIX 实测）；8 种状态的分类；只解析 `---` 之后的摘要块 |
 | B 结构化记录 | `make_record()` | 每次运行一条 JSON；失败的记录不带指标；记录受保护文件的哈希 |
 | C 保留规则 | `decide()` | 噪声阈值；显存上限；受保护文件被改动时判为无效 |
 
@@ -35,6 +43,11 @@ python3 demo.py
 | 6 | 设计噪声阈值的测量：同一 commit 跑几次、怎样取阈值、花多少 GPU 时间 | 写成半页；给出成本估计 | 30 分钟 | 否（只设计） |
 | 7 | 在有 GPU 的机器上，把 runner 接到真实的 `uv run train.py`，同一 commit 重复 5 次，报告 `val_bpb` 的波动 | 得到实测的噪声范围 | 约 30 分钟 GPU 时间 + 1 小时 | **是** |
 
-## 4. 未做
+## 4. 已知问题与修正
+
+- **已修（2026-11-14）**：早先的超时处理只有 `os.killpg`，原生 Windows 不支持。现在按平台分支。
+- 写 `test_kill_tree.py` 时我自己的第一版判断有误：被杀死但尚未被回收的僵尸进程在 `os.kill(pid, 0)` 下仍显示“存在”，测试因此误报失败。现在读取进程状态，僵尸不算存活；并确认了“只杀直接子进程”时测试会失败。
+
+## 5. 未做
 
 真实训练；噪声水平的测量；独立评估进程（保存 checkpoint、从 logits 计算 loss）；对指标投机路径的实际验证；与 agent 的集成。

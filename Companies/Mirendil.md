@@ -48,6 +48,8 @@ JD 很短（约 1.5k 字符），没有列出任职要求与面试流程。
 | agent_failure_investigation | “agent-assisted workflows”；Lor 文章中的“读几千条 agent trace 找失败” | [Knowledge](../Knowledge/agent_failure_investigation/README.md) | [Practice](../Practice/agent_failure_investigation/README.md) | [Review](../Review/agent_failure_investigation/速查卡.md) |
 | autoresearch_loop | “close the loop between eval signal and training decisions”；公司的研究自动化方向 | [Knowledge](../Knowledge/autoresearch_loop/README.md) | [Practice](../Practice/autoresearch_loop/README.md) | [Review](../Review/autoresearch_loop/速查卡.md) |
 
+**怎样用这些材料交付**：[Review/mirendil_takehome/执行指南.md](../Review/mirendil_takehome/执行指南.md)——拿到题后怎样选切口、与 Claude 怎样分工、准备不足时怎样开始、12 小时怎样分配（准备情境）、最后怎样讲清楚。
+
 **共用基础**：[agent_harness](../Knowledge/agent_harness/README.md) 提供运行与记录的合同（run 目录、events、CheckResult）、verifier 的验证方法与公平比较。六个专题复用它，不重复讲。
 
 **专题之间怎样衔接**（共享一个场景：agent 修一个训练 bug、跑实验、交实验报告）：

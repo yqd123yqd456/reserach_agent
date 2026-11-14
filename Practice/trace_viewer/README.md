@@ -10,7 +10,7 @@
 | [`sketch/make_sample_traces.py`](sketch/make_sample_traces.py) | 生成 `raw_traces.json`：3 条 run，其中一条带 5 种日志异常 |
 | [`sketch/normalize.py`](sketch/normalize.py) | 配对调用与返回、标出异常、算 run 摘要与状态差异；写 `normalized.json` 和 `data.js` |
 | [`sketch/viewer.html`](sketch/viewer.html) | 单文件静态页面：筛选、搜索、时间线、评分证据、状态变化、双 run 对比 |
-| [`sketch/check_viewer.js`](sketch/check_viewer.js) | 用 Playwright 加载页面并按 journey 断言（需要本机有 Node 与 Playwright） |
+| [`sketch/check_viewer.js`](sketch/check_viewer.js) | 用 Playwright 加载页面、按 journey 操作并**断言**预期值；任一不符或页面脚本异常时以非零状态退出（需要本机有 Node 与 Playwright） |
 
 ## 2. 运行
 
@@ -35,6 +35,8 @@ node check_viewer.js
 ```
 
 ## 3. 实测结果
+
+检查脚本现在的最后一行是 `CHECK PASSED: 13 assertions`。反向验证：把页面里“失败”筛选的条件改反后，脚本以退出码 1 结束。早先的版本只打印下面这些值、不做断言，页面坏了也不会失败（2026-11-14 已修）。
 
 标准化输出见 [Knowledge §3](../../Knowledge/trace_viewer/README.md#3-贯穿例子三条-run-的小型-trace)。页面检查的实际输出：
 
