@@ -1,6 +1,6 @@
 # 验证 verifier 本身：误拒、误收、rubric gaming 与泄漏
 
-> 学习结论：verifier 是被测量的仪器，它本身需要测试集。最小验证包：**oracle 解必须通过、什么都不做必须失败、等价正确解不能被拒、已知错误变体必须被拒、对抗性作弊 agent 找不到捷径、LLM judge 与人类标签的一致性有报告**。公开 benchmark 中这些问题很常见，而且会让分数偏高或偏低几十个百分点。
+> 学习结论：verifier 是被测量的仪器，它本身需要测试集。最小验证包：**oracle 解必须通过；在应改变状态的任务上什么都不做必须失败，在拒绝／澄清类任务上空回复必须被输出检查判失败；等价正确解不能被拒、已知错误变体必须被拒、对抗性作弊 agent 找不到捷径、LLM judge 与人类标签的一致性有报告**。公开 benchmark 中这些问题很常见，而且会让分数偏高或偏低几十个百分点。
 >
 > 先修：[01](01_三种harness与最小对象模型.md)、[02](02_工具使用测量与过程约束.md)。相关：[07 reward 安全性](07_从评估信号到post-training.md)。
 
@@ -37,9 +37,9 @@ ABC 评估的 10 个 benchmark 中，7 个违反任务效度，7 个违反结果
 | 测试 | 目的 | 来源中的做法 |
 |---|---|---|
 | oracle 解 | 证明任务可解且 verifier 接受正确解 | Terminal-Bench CI 要求 oracle 通过；AppWorld 每个任务有程序化验证解；ABC T.7–T.9 |
-| no-op agent | 证明“什么都不做”不会通过 | Terminal-Bench CI 要求无操作 agent 失败；AppWorld 为每个测试标注无操作时失败／通过；τ² 检查“在应用全部解法前任务未被解决” |
+| no-op agent | 在应改变状态的任务上，确认“什么都不做”不会通过；在正确行为本来就是“不改状态”的任务（拒绝、澄清、问答）上，确认其他检查（回复内容）能把 no-op 与正确行为区分开 | Terminal-Bench CI 要求无操作 agent 失败；AppWorld 为每个测试标注无操作时失败／通过；τ² 检查“在应用全部解法前任务未被解决” |
 | 等价正确解 | 防误拒 | 手写 2–3 个不同路径／格式的正确结果 |
-| 错误变体 | 防误收 | 每个检查项至少一个只违反这一项的变体（见 [Practice/00 §3.4](../../Practice/agent_harness/00_共用harness规格.md#34-l1-验收必须全部通过才进入-l2)） |
+| 错误变体 | 防误收 | 每个检查项至少一个只违反这一项的变体（见 [Practice/00 §3.4](../../Practice/agent_harness/00_共用harness规格.md#36-l1-验收进入-l2-前应通过)） |
 | 平凡 agent | 报告下限 | ABC R.13：报告平凡 agent 的结果 |
 | 对抗性作弊 agent | 找捷径 | Terminal-Bench 用一个被指示作弊的 OpenHands agent，发现了 monkey-patch 测试、猜测、枚举全部答案等漏洞；每个任务约 3 小时人工审查，229 个投稿任务最终保留 89 个 |
 | 人类一致性 | 校准 judge | APEX-Agents 报告 judge 在 747 个人工标签上 98.5% 准确（Mercor 自报）；PaperBench 的 JudgeEval 报告 F1 |

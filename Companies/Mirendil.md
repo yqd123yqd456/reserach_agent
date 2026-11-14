@@ -39,7 +39,7 @@ JD 很短（约 1.5k 字符），没有列出任职要求与面试流程。
 
 **可迁移的交付形态**（不论题目）：
 1. 一个可运行的 runner：任务格式、执行、trace 记录。
-2. 一个经过测试的 verifier：oracle 通过、no-op 失败、错误变体被拒（[Knowledge/05 §3](../Knowledge/agent_harness/05_verifier的验证与防作弊.md#3-verifier-的测试集怎么建)）。
+2. 一个经过测试的 verifier：oracle 通过、no-op 在应改状态的任务上失败（拒绝类任务靠输出检查区分）、错误变体被拒（[Knowledge/05 §3](../Knowledge/agent_harness/05_verifier的验证与防作弊.md#3-verifier-的测试集怎么建)）。
 3. 有效／无效 run 分开；带不确定度的比较报告。
 4. 至少一条失败诊断。
 5. 简洁 README：怎样运行、判分规则、已知局限、哪些部分未运行。

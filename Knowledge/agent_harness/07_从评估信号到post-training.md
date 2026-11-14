@@ -2,7 +2,7 @@
 
 > 学习结论：
 > 1. 同一个评估对象可以有四种用途：**诊断**（解释失败）、**筛选**（挑数据／挑候选）、**reward**（直接进入梯度）、**独立验证**（判断训练是否真的带来收益）。越靠后，对可被利用（gameable）性的要求越高；第四种必须与前三种**分开**。
-> 2. GRPO 类算法只从“同一 prompt 的多次采样之间的分数差异”中学习。全对或全错的组没有梯度，所以 verifier 的难度校准就是 reward 设计的一部分。
+> 2. GRPO 类算法只从“同一 prompt 的多次采样之间的分数差异”中学习。全对或全错的组 advantage 为 0，**策略梯度项**对这些样本为零（若目标中有 KL 等其他项，这些项仍会产生梯度），所以 verifier 的难度校准就是 reward 设计的一部分。
 > 3. 证明“选出的数据提升了模型”需要：随机选择对照、随机／格式 reward 对照、跨模型族、与筛选信号不同的保留评估，以及对作弊式通过的单独计数。
 >
 > 先修：[05 verifier 验证](05_verifier的验证与防作弊.md)、[06 公平比较](06_公平比较与统计.md)。应用：[Mercor Post-training RE](../../Companies/Mercor.md#1-post-training-re)、[Practice 分支 C](../../Practice/agent_harness/01_岗位分支实验.md)。
@@ -24,7 +24,11 @@ DeepSeekMath（Shao et al., arXiv 2402.03300, §4.1）：对同一 prompt 采样
 | prompt C | 0,0,0,0 | 0 | 0 | 0 |
 
 含义：
-- **只有“有时对、有时错”的 prompt 产生梯度**。随着训练推进，越来越多 prompt 变成全对，有效 batch 缩小。DAPO 的 *dynamic sampling* 就是过采样并只保留 `0 < #correct < G` 的组。
+- **只有“有时对、有时错”的 prompt 对策略梯度项有贡献**。Â=0 时，截断代理目标 `min(ρÂ, clip(ρ)Â)` 对这些 token 的梯度为零。但这不等于“整组没有任何更新”：
+  - GRPO（DeepSeekMath Eq. 3）的 loss 里还有 `β·KL(π_θ‖π_ref)`（β=0.04），它对所有样本都有梯度，会把 policy 拉向参考模型；
+  - 若训练中还加了熵奖励、SFT 辅助 loss 等项，它们也照常起作用；
+  - DAPO 去掉了 KL 项（§2.3 原文），此时全对／全错组对梯度确实没有贡献；在 token 级平均（`token-mean`）下，这些 token 仍计入分母，会稀释其他组的梯度。
+  随着训练推进，越来越多 prompt 变成全对，有效 batch 缩小。DAPO 的 *dynamic sampling* 就是过采样并只保留 `0 < #correct < G` 的组。
 - **A 中唯一正确的样本得到很大的正 advantage**。如果那个“正确”其实是 verifier 误判（假阳性），它也会被大幅强化。这是我的推断，但它直接说明了：**verifier 在难题上的假阳性比在简单题上的更危险**。
 - std 归一化会放大近似一致组里的小差异：若 verifier 有噪声，噪声在这些组里被放大（推断，来源未直接陈述）。
 
@@ -35,7 +39,7 @@ DAPO（Yu et al., arXiv 2503.14476）在 Qwen2.5-32B 上报告的累积消融（
 | 修改 | 问题 | 做法 | 与评估信号的关系 |
 |---|---|---|---|
 | clip-higher | 熵塌缩：低概率探索 token 难以上升 | 上截断 ε_high=0.28 > 下截断 ε_low=0.2 | 无直接关系 |
-| dynamic sampling | 全对／全错组 advantage 为 0 | 只保留有分数差异的组 | **任务难度分布**决定有效样本量 |
+| dynamic sampling | 全对／全错组 advantage 为 0，对策略梯度项无贡献，却占用 batch | 只保留有分数差异的组 | **任务难度分布**决定有效样本量 |
 | token-level loss | 按序列先平均会让长回答的每个 token 权重变小，长而差的回答惩罚不足 | 用总 token 数归一化 | 无直接关系 |
 | overlong shaping | “正确但被截断”的回答被判错，引入 reward 噪声 | 截断样本过滤 + 最后 4096 token 线性惩罚 | **截断规则本身是 reward 的一部分** |
 
@@ -91,7 +95,7 @@ DAPO 刻意不用学习到的 reward model，而用规则判等（+1/−1），�
 ## 7. 面试追问
 
 - “你的 judge 能直接当 reward 吗？” → 区分四种用途；讲 Gao 的过优化与 METR／ImpossibleBench 的作弊证据；给出保留 gold 抽检与作弊率监控。
-- “为什么 GRPO 训练到后期变慢？” → 全对组增多、advantage 为 0；dynamic sampling；难度课程。
+- “为什么 GRPO 训练到后期变慢？” → 全对组增多、advantage 为 0，策略梯度项的有效样本减少（有 KL 项时这些样本仍贡献 KL 梯度）；dynamic sampling；难度课程。
 - “怎么证明数据有用？” → 第 5 节的六条。
 - “binary 还是 dense reward？” → APEX-Agents 同时报告二值 Pass@1 与均值分数，并指出均值分数可作为更密的训练信号；dense 更易学，也更易被 gaming，需要逐项可审计的 rubric。
 

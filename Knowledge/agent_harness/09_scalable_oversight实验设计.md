@@ -21,7 +21,7 @@
 | 多任务 debate（Kenton et al. 2024, DeepMind） | Gemma7B…Gemini Pro 1.5 judge / Pro 1.5 辩手 | 抽取式任务有信息不对称；封闭任务没有 | 有／无原文的直接 QA；指定立场与自选立场 | debate 在所有任务上胜过 consultancy；抽取式任务上胜过“无原文 QA”但不胜过“有原文 QA”；封闭任务上收益小或无；judge 与辩手同一模型时 debate 不如直接 QA |
 | Weak-to-strong（Burns et al. 2023） | 小模型标签 / 大模型 | 能力；训练时 | 弱模型、强模型上限 | `PGR = (w2s − weak)/(ceiling − weak)`；GPT-2 级监督 GPT-4 在 NLP 任务上约恢复一半差距，加辅助置信 loss 约 80% |
 | Prover-verifier games（Kirchner et al. 2024） | 约 10⁻³ 算力的 verifier / prover | 能力；训练时 | 只优化正确性 | 只优化正确性会让解答变得难以被人看懂（legibility tax）；多轮训练后 verifier 对“狡猾 prover”更鲁棒；同尺寸 verifier 没有变得更鲁棒 |
-| 误导（Wen et al. 2024, U-SOPHISTRY） | 时间受限的人类 / RLHF 后的 7B 模型 | 时间压力 | 优化真实正确性的对照 | RLHF 后人类认可率上升（+6.0 至 +14.3），正确性几乎不变；在“两版都错”的子集上，假阳性率从 41.0% 升到 65.1%（QA）等 |
+| 误导（Wen et al. 2024, U-SOPHISTRY） | 时间受限的人类 / RLHF 后的 7B 模型 | 时间压力 | 优化真实正确性的对照 | RLHF 后人类认可率上升（QA 通用 RM +9.4、QA 任务专用 RM +6.0、编程 +14.3），正确性几乎不变；在“两版都错”的子集上，假阳性率上升：QA 任务专用 RM 41.0%→65.1%，QA 通用 RM 46.7%→70.2%，编程 29.6%→47.9%（§3.4） |
 
 > 来源状态：上表数字均从 PDF 正文读取；Kirchner 的人类准确率只在图中，且作者标注其“狡猾解答”人类实验可能有缺陷。
 

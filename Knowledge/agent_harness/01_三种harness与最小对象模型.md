@@ -5,6 +5,8 @@
 > 2. 一次 run 的最小对象：task、environment/state、tool schema、step、termination、trace、verifier、result。最容易做错的是：**verifier 依据 agent 自述而不是环境状态判成功**，以及**把无效 run 静默地从分母中丢掉**。
 > 3. agent 比单轮难，是因为多步、有状态、有副作用、路径不唯一。每一条都迫使 harness 做一件具体的事。
 >
+> **execution harness 的逐步机制**（消息、tool call id、history、终止）见 [01a](01a_execution_harness一次run的完整过程.md)。
+>
 > 后续：[02 工具使用测量](02_工具使用测量与过程约束.md) → [03 故障注入](03_故障注入与恢复.md) → [04 失败诊断](04_失败诊断与受控重跑.md) → [05 verifier 验证](05_verifier的验证与防作弊.md) → [06 公平比较](06_公平比较与统计.md) → [07 post-training](07_从评估信号到post-training.md)。实现规格：[Practice/00](../../Practice/agent_harness/00_共用harness规格.md)。
 
 ## 1. 三种 harness
@@ -42,7 +44,7 @@ UK AISI 的 Inspect AI（commit `e4435baa`，2026-11-12；代码已读，未运�
 
 ## 3. 最小对象模型：输入与输出
 
-下面是练习项目采用的对象（完整 schema 见 [Practice/00 §2](../../Practice/agent_harness/00_共用harness规格.md#2-数据-schemal1-起就固定)）。
+下面是练习项目采用的对象（完整数据合同见 [Practice 00 §2](../../Practice/agent_harness/00_共用harness规格.md#2-数据合同l1-起就固定)）。
 
 | 对象 | 输入 | 输出 | 必须记录 |
 |---|---|---|---|
