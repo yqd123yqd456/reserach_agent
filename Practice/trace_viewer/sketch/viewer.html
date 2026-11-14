@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace Viewer 草图</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --line:#d8dee4; --panel:#f6f8fa; --bad:#b42318; --good:#1a7f37; --warn:#9a6700; --sel:#ddf4ff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1318; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --panel:#161b22; --bad:#ff7b72; --good:#56d364; --warn:#e3b341; --sel:#12304a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  input, select { font:inherit; padding:4px 6px; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:4px; }
+  main { display:grid; grid-template-columns: 260px 1fr 340px; min-height: calc(100vh - 52px); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { padding:12px 16px; border-right:1px solid var(--line); overflow:auto; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 8px; }
+  .row { padding:6px 8px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px; cursor:pointer; background:var(--panel); }
+  .row.sel { background:var(--sel); border-color:var(--fg); }
+  .row.diverge { border-left:4px solid var(--warn); }
+  .badge { font-size:11px; padding:1px 6px; border-radius:10px; border:1px solid currentColor; margin-left:4px; white-space:nowrap; }
+  .bad { color:var(--bad); } .good { color:var(--good); } .warn { color:var(--warn); } .muted { color:var(--muted); }
+  pre { margin:6px 0 0; padding:8px; background:var(--panel); border:1px solid var(--line); border-radius:6px; white-space:pre-wrap; word-break:break-word; font-size:12px; max-height:260px; overflow:auto; }
+  mark { background:var(--warn); color:#000; }
+  table { border-collapse:collapse; width:100%; font-size:12px; } td, th { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .cols > div { min-width:0; }
+  .row { overflow-wrap:anywhere; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trace Viewer 草图</h1>
+  <label>筛选 <select id="filter"><option value="all">全部</option><option value="failed">失败</option><option value="anomaly">日志异常</option></select></label>
+  <label>搜索 <input id="query" placeholder="工具名、参数、错误码…"></label>
+  <label>对比 <select id="compare"><option value="">（不对比）</option></select></label>
+  <span id="count" class="muted"></span>
+</header>
+<main>
+  <section id="runs"></section>
+  <section id="timeline"></section>
+  <section id="detail"></section>
+</main>
+<script src="data.js"></script>
+<script>
+// ---- 状态：整个页面只有这一个对象；任何交互都是“改状态 → 重新 render()” ----
+const state = { filter: "all", query: "", runId: null, stepIdx: null, compareId: "" };
+const RUNS = window.TRACE_DATA || [];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hi = s => { const t = esc(s), q = state.query.trim(); if (!q) return t;
+  return t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), m => `<mark>${m}</mark>`); };
+const stepText = s => JSON.stringify(s).toLowerCase();
+
+// ---- 派生数据：由状态与原始数据计算，不单独保存 ----
+function visibleRuns() {
+  const q = state.query.trim().toLowerCase();
+  return RUNS.filter(r => (state.filter === "all" || (state.filter === "failed" && !r.success) || (state.filter === "anomaly" && r.anomalies.length))
+    && (!q || r.steps.some(s => stepText(s).includes(q)) || r.run_id.includes(q)));
+}
+function toolSig(r) { return r.steps.filter(s => s.kind === "tool").map(s => s.name + JSON.stringify(s.args)); }
+function firstDivergence(a, b) { const x = toolSig(a), y = toolSig(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return i;
+  return x.length === y.length ? null : Math.min(x.length, y.length); }
+
+// ---- 渲染：三个函数，各自只读 state 与数据，返回 HTML ----
+function renderRuns(list) {
+  return `<h2>Runs</h2>` + (list.length ? list.map(r => `
+    <div class="row ${r.run_id === state.runId ? "sel" : ""}" data-run="${esc(r.run_id)}">
+      <b>${hi(r.run_id)}</b> <span class="badge ${r.success ? "good" : "bad"}">${r.success ? "success" : "fail"}</span>
+      ${r.anomalies.length ? `<span class="badge warn">${r.anomalies.length} 日志异常</span>` : ""}
+      <div class="muted">${esc(r.model)} · ${esc(r.termination)} · ${r.n_tool_calls} 次调用，${r.n_tool_errors} 次错误</div>
+      ${r.first_failed_check ? `<div class="bad">✗ ${esc(r.first_failed_check)}</div>` : ""}
+    </div>`).join("") : `<p class="muted">没有匹配的 run</p>`);
+}
+function stepRow(s, selected, diverge) {
+  const badges = (s.flags || []).map(f => `<span class="badge warn">${esc(f)}</span>`).join("");
+  let head;
+  if (s.kind === "tool") {
+    const st = s.status === "ok" ? "good" : s.status === "error" ? "bad" : "warn";
+    const err = s.result && s.result.error ? ` — ${hi(s.result.error.code)}: ${hi(s.result.error.message)}` : "";
+    head = `<b>${hi(s.name)}</b>(${hi(JSON.stringify(s.args))}) <span class="badge ${st}">${esc(s.status)}</span>${err}`;
+  } else if (s.kind === "orphan_result") head = `<b>孤儿结果</b> call_id=${esc(s.call_id)}`;
+  else head = `<span class="muted">${esc(s.kind)}</span> ${hi(s.text.length > 90 ? s.text.slice(0, 90) + "…" : s.text)}`;
+  return `<div class="row ${selected ? "sel" : ""} ${diverge ? "diverge" : ""}" data-step="${s.i}"><span class="muted">#${s.i}</span> ${head}${badges}</div>`;
+}
+function renderTimeline(run, other) {
+  if (!run) return `<h2>Timeline</h2><p class="muted">在左侧选一个 run</p>`;
+  const div = other ? firstDivergence(run, other) : null;
+  const col = (r, selectable) => { let t = -1; return r.steps.map(s => { if (s.kind === "tool") t++;
+    return stepRow(s, selectable && s.i === state.stepIdx, div !== null && s.kind === "tool" && t === div); }).join(""); };
+  if (!other) return `<h2>Timeline · ${esc(run.run_id)}</h2>` + col(run, true);
+  return `<h2>对比（黄色边 = 工具调用序列第一次不同，位置 ${div === null ? "无" : div}）</h2>
+    <div class="cols"><div><b>${esc(run.run_id)}</b>${col(run, true)}</div><div><b>${esc(other.run_id)}</b>${col(other, false)}</div></div>`;
+}
+function renderDetail(run) {
+  if (!run) return `<h2>Detail</h2>`;
+  const s = run.steps.find(x => x.i === state.stepIdx);
+  const checks = run.checks.map(c => `<tr><td class="${c.passed ? "good" : "bad"}">${c.passed ? "PASS" : "FAIL"}</td><td>${esc(c.kind)}</td><td>${esc(c.name)}<div class="muted">${esc(c.evidence)}</div></td></tr>`).join("");
+  const diff = run.state_diff.length ? run.state_diff.map(d => `<tr><td>${esc(d.path)}</td><td>${esc(JSON.stringify(d.before))}</td><td>${esc(JSON.stringify(d.after))}</td></tr>`).join("")
+    : `<tr><td colspan="3" class="muted">初始与最终状态相同</td></tr>`;
+  return `<h2>评分证据</h2><table>${checks}</table>
+    <h2 style="margin-top:14px">状态变化（初始 → 最终）</h2><table><tr><th>路径</th><th>前</th><th>后</th></tr>${diff}</table>
+    <h2 style="margin-top:14px">选中的步骤</h2>${s ? `<pre>${hi(JSON.stringify(s, null, 1))}</pre>` : `<p class="muted">点击时间线中的一步</p>`}`;
+}
+function render() {
+  const list = visibleRuns();
+  if (!list.some(r => r.run_id === state.runId)) { state.runId = list.length ? list[0].run_id : null; state.stepIdx = null; }
+  const run = RUNS.find(r => r.run_id === state.runId), other = RUNS.find(r => r.run_id === state.compareId && r.run_id !== state.runId);
+  document.getElementById("count").textContent = `${list.length} / ${RUNS.length} runs`;
+  document.getElementById("runs").innerHTML = renderRuns(list);
+  document.getElementById("timeline").innerHTML = renderTimeline(run, other);
+  document.getElementById("detail").innerHTML = renderDetail(run);
+}
+
+// ---- 事件：只改 state，然后 render() ----
+document.getElementById("compare").innerHTML += RUNS.map(r => `<option value="${esc(r.run_id)}">${esc(r.run_id)}</option>`).join("");
+document.getElementById("filter").onchange = e => { state.filter = e.target.value; render(); };
+document.getElementById("query").oninput = e => { state.query = e.target.value; render(); };
+document.getElementById("compare").onchange = e => { state.compareId = e.target.value; render(); };
+document.getElementById("runs").onclick = e => { const el = e.target.closest("[data-run]"); if (el) { state.runId = el.dataset.run; state.stepIdx = null; render(); } };
+document.getElementById("timeline").onclick = e => { const el = e.target.closest("[data-step]"); if (el) { state.stepIdx = Number(el.dataset.step); render(); } };
+render();
+</script>
+</body>
+</html>

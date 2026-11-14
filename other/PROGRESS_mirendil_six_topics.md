@@ -12,7 +12,7 @@
 ## 状态
 - [x] grading（Knowledge/Practice/Review 完成，草图已运行）
 - [x] task_dataset_design（完成，草图已运行）
-- [ ] trace_viewer
+- [x] trace_viewer（完成；标准化已运行，页面经无头浏览器实测）
 - [ ] training_eval_diagnostics
 - [ ] agent_failure_investigation
 - [ ] autoresearch_loop
