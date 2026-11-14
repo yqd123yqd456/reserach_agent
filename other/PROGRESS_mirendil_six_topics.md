@@ -10,8 +10,8 @@
 - 来源状态标签沿用 Knowledge/agent_harness/10 的六级定义。
 
 ## 状态
-- [ ] grading
-- [ ] task_dataset_design
+- [x] grading（Knowledge/Practice/Review 完成，草图已运行）
+- [x] task_dataset_design（完成，草图已运行）
 - [ ] trace_viewer
 - [ ] training_eval_diagnostics
 - [ ] agent_failure_investigation
