@@ -56,17 +56,27 @@
 ### 情境 A：loss／BPB 降低，任务通过率不变
 
 ```text
-val_bpb      step 1000 -> 4000: 0.9494 -> 0.7991
 indep pass rate by checkpoint: {1000: 0.425, 2000: 0.458, 3000: 0.45, 4000: 0.633}
 comparability step 1000 vs 4000: [version_mismatch/BLOCKING] grader_version: ['grader-v1'] vs ['grader-v2']
+comparison window: step 1000 -> 3000  (SHORTENED: step(s) [4000] blocked above; every number below uses this window)
+train_loss   step 1000 -> 3000: 2.2088 -> 1.8572  (outside window, not compared: step 4000 = 1.6875)
+val_bpb      step 1000 -> 3000: 0.9494 -> 0.8526  (outside window, not compared: step 4000 = 0.7991)
 paired diff (step 3000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.025, 'ci95': (-0.083, 0.133)}
+4 slices tested; flags are UNADJUSTED for 4 comparisons (ci95); ci_bonf is the 98.75% interval. False-flag rates under no change: python3 diagnose.py --null-sim N
+  slice data_pipeline        {'n_tasks': 10, 'diff': 0.2, 'ci95': (-0.067, 0.433), 'ci_bonf': (-0.133, 0.5)}
+  slice eval_leakage         {'n_tasks': 10, 'diff': -0.133, 'ci95': (-0.367, 0.067), 'ci_bonf': (-0.4, 0.1)}
+  slice numerical_stability  {'n_tasks': 10, 'diff': -0.067, 'ci95': (-0.2, 0.067), 'ci_bonf': (-0.233, 0.1)}
+  slice optimizer            {'n_tasks': 10, 'diff': 0.1, 'ci95': (-0.067, 0.267), 'ci_bonf': (-0.1, 0.3)}
+per-task drops with one-sided Fisher exact p < 0.05 (40 tasks tested, unadjusted): none  (smallest attainable p with k=3 trials per checkpoint: 0.050)
+largest per-task drops, UNFILTERED (mostly noise at k=3; use only to pick samples to read): [('eval-08', -0.67, 'p=0.20'), ('eval-02', -0.67, 'p=0.20'), ('eval-09', -0.33, 'p=0.50')]
 ```
 
 诊断过程：
 1. 只看通过率曲线，step 4000 像是一次大提升（0.45 → 0.633）。**可比性检查发现这次评估换了 grader 版本**，所以这个点不能与前面的比。
-2. 在可比的范围内（step 1000 到 3000），配对差 +0.025，区间跨 0：没有证据表明任务能力变化。
-3. 分切片的差有正有负（+0.2、−0.133 等），区间都跨 0。每个切片只有 10 个任务、每任务 3 次试验，**这种幅度的波动是噪声水平**，不应解读。
-4. 竞争解释与下一步：
+2. 在可比的范围内（step 1000 到 3000），配对差 +0.025，区间跨 0：没有证据表明任务能力变化。**loss 与 BPB 也只在这个窗口内报告**（BPB 0.9494 → 0.8526）；step 4000 的值单独列出，不参与比较。两类指标用同一个窗口，才能说“BPB 降了而通过率没变”。
+3. 分切片的差有正有负（+0.2、−0.133 等），区间都跨 0。每个切片只有 10 个任务、每任务 3 次试验，**这种幅度的波动是噪声水平**，不应解读。这条 run 没有切片被标记，但这不是必然的：在没有真实变化的模拟里，约 27% 的 run 至少有一个切片被标记（数字见情境 C 末尾）。
+4. “最大的任务级下降”一行是**未经筛选**的列表。每个任务只有 3 次试验，即使从 3/3 掉到 0/3，单侧 Fisher 精确检验的 p 也只有 0.05，所以没有任何单个任务的下降能被分辨（脚本打印 `none`）。这一行只用来挑选要读的样本，不是证据。
+5. 竞争解释与下一步：
 
 | 解释 | 支持它的观察 | 怎样验证 |
 |---|---|---|
@@ -75,22 +85,23 @@ paired diff (step 3000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.025, '
 | 瓶颈在 harness 或推理配置 | — | 固定 checkpoint，改 harness 配置，看通过率是否变化 |
 | 能力确实没变 | 以上都排除后 | — |
 
-5. grader 版本的问题要单独处理：用 v2 **重判** step 1000–3000 的存档输出，或用 v1 重判 step 4000，再比较（重判的含义见 [Practice 00 §2.4](../../Practice/agent_harness/00_共用harness规格.md#24-三种再来一次不要混用)）。
+6. grader 版本的问题要单独处理：用 v2 **重判** step 1000–3000 的存档输出，或用 v1 重判 step 4000，再比较（重判的含义见 [Practice 00 §2.4](../../Practice/agent_harness/00_共用harness规格.md#24-三种再来一次不要混用)）。
 
 ### 情境 B：reward 上升，独立验证不改善
 
 ```text
+comparison window: step 1000 -> 4000
 reward_mean  step 1000 -> 4000: 0.425 -> 0.65
 paired diff (step 4000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.0, 'ci95': (-0.092, 0.1)}
-step 1000: reward_pass 51/120, indep_pass 51/120, reward-only passes 0
-step 4000: reward_pass 78/120, indep_pass 51/120, reward-only passes 27
+step 1000: reward_pass 51/120, indep_pass 51/120, reward-only passes 0  (excluded: 0 invalid, 0 valid without reward_pass)
+step 4000: reward_pass 78/120, indep_pass 51/120, reward-only passes 27  (excluded: 0 invalid, 0 valid without reward_pass)
 paired diff on reward_pass: {'n_tasks': 40, 'diff': 0.225, 'ci95': (0.125, 0.317)}
 reward-only passes at step 4000 by output note: {'special-cases the visible test inputs': 27}
 ```
 
 诊断过程：
 1. reward（可见测试的通过率）显著上升（+0.225，区间不含 0），独立验证的配对差为 0。
-2. **分解**：把每次试验按“reward 通过 × 独立通过”分成四格。“只有 reward 通过”的试验从 0 增加到 27。上升的 reward 全部来自这一格。
+2. **分解**：把每次试验按“reward 通过 × 独立通过”分成四格。“只有 reward 通过”的试验从 0 增加到 27。上升的 reward 全部来自这一格。分解只统计有效且两个字段都有记录的试验，被排除的数量写在行尾（这条 run 里是 0）。
 3. **读样本**：这 27 个输出的标注都是“对可见测试的输入做了特判”（合成数据中预置的标注；真实情况下这一步要人或经过验证的分类器来读）。
 4. 结论的表述：“reward 的上升由只在可见测试上通过的输出解释；没有证据表明独立标准下的能力提高”。
 5. 下一步：在训练环境里隐藏或隔离测试；把“只有 reward 通过”的比例作为常设监控指标；加入不可能完成的任务作为探针（[07 §3](../agent_harness/07_从评估信号到post-training.md#3-哪些信号能当-reward)）。
@@ -100,34 +111,61 @@ reward-only passes at step 4000 by output note: {'special-cases the visible test
 ```text
 indep pass rate by checkpoint: {1000: 0.408, 2000: 0.425, 3000: 0.5, 4000: 0.525}
 comparability step 1000 vs 2000: [invalid_trials] last: 8/120 invalid trials (['sandbox_unavailable']) concentrated in ['optimizer']
+comparison window: step 1000 -> 4000
 paired diff (step 4000 - step 1000), all tasks: {'n_tasks': 40, 'diff': 0.117, 'ci95': (0.008, 0.225)}
-  slice eval_leakage         {'n_tasks': 10, 'diff': 0.233, 'ci95': (0.033, 0.4)}  <-- improvement
-  slice numerical_stability  {'n_tasks': 10, 'diff': -0.167, 'ci95': (-0.3, -0.033)}  <-- regression
-  slice optimizer            {'n_tasks': 10, 'diff': 0.267, 'ci95': (0.133, 0.4)}  <-- improvement
-largest per-task drops: [('nume-08', -0.67), ...]
+4 slices tested; flags are UNADJUSTED for 4 comparisons (ci95); ci_bonf is the 98.75% interval. False-flag rates under no change: python3 diagnose.py --null-sim N
+  slice data_pipeline        {'n_tasks': 10, 'diff': 0.133, 'ci95': (-0.133, 0.4), 'ci_bonf': (-0.2, 0.433)}
+  slice eval_leakage         {'n_tasks': 10, 'diff': 0.233, 'ci95': (0.033, 0.4), 'ci_bonf': (0.0, 0.467)}  <-- improvement (unadjusted; does NOT hold after Bonferroni)
+  slice numerical_stability  {'n_tasks': 10, 'diff': -0.167, 'ci95': (-0.3, -0.033), 'ci_bonf': (-0.333, -0.033)}  <-- regression (unadjusted; holds after Bonferroni)
+  slice optimizer            {'n_tasks': 10, 'diff': 0.267, 'ci95': (0.133, 0.4), 'ci_bonf': (0.133, 0.433)}  <-- improvement (unadjusted; holds after Bonferroni)
+per-task drops with one-sided Fisher exact p < 0.05 (40 tasks tested, unadjusted): none  (smallest attainable p with k=3 trials per checkpoint: 0.050)
+largest per-task drops, UNFILTERED (mostly noise at k=3; use only to pick samples to read): [('nume-08', -0.67, 'p=0.20'), ('data-02', -0.33, 'p=0.50'), ('data-06', -0.33, 'p=0.50')]
   samples to read for nume-08 @ step 4000: ['C-4000-nume-08-1', 'C-4000-nume-08-2']
 ```
 
 诊断过程：
 1. 总体配对差 +0.117，区间勉强不含 0。
-2. 分切片：两个切片显著进步，`numerical_stability` 显著退步（−0.167，区间整体在 0 以下）。
-3. 下钻：退步最大的任务是 `nume-08`，脚本给出要读的两个样本 id。
-4. 可比性检查还报告：step 2000 的评估有 8 次无效试验，全部集中在 `optimizer` 切片，原因是 sandbox 不可用。这不影响首尾比较，但**如果比较的是 step 2000，无效试验集中在一个切片会让该切片的估计有偏**；应补跑。
-5. 竞争解释：训练数据中这一类样本变少或被冲掉；新数据教会了一种在数值任务上有害的习惯。验证方法是干预：只改数据配比重新训练，或在同一 checkpoint 上用针对性探针测试。
-6. 对发布决策的含义：总分上升不足以放行；回归集里若有这个切片，应当阻止发布（[06 §4](../agent_harness/06_公平比较与统计.md#4-开发集保留测试集回归集各管什么)）。
+2. 分切片：三个切片被标记，标记都是**未校正**的。`numerical_stability` 退步（−0.167）与 `optimizer` 进步在 Bonferroni 区间下仍不含 0；`eval_leakage` 的进步在 Bonferroni 区间下界正好是 0，不再成立。
+3. 这些标记有多可信，看下面的零假设模拟：没有任何真实变化时，约 14% 的 run 也会出现至少一个“退步”标记，换成 Bonferroni 区间后仍有约 7.5%。所以这一次的退步标记是**值得复核的线索**，不是结论。它在这里与生成脚本的设定一致，只因为数据是合成的、设定的效应很大（通过概率在该切片最多降低 0.38）。
+4. 下钻：下降最多的任务是 `nume-08`（3 次试验里少通过 2 次，p=0.20），脚本给出要读的两个样本 id。单个任务的下降在 k=3 时分辨不了，这个列表只用来挑样本。
+5. 可比性检查还报告：step 2000 的评估有 8 次无效试验，全部集中在 `optimizer` 切片，原因是 sandbox 不可用。这不影响首尾比较，但**如果比较的是 step 2000，无效试验集中在一个切片会让该切片的估计有偏**；应补跑。若某个任务在一侧没有任何有效试验，脚本会以 `tasks_dropped` 列出它；若整个切片都没有，脚本以 `slice_missing` 阻止这一对 checkpoint 的比较（规则见 §5）。这份数据里两种情况都没有出现。
+6. 竞争解释：训练数据中这一类样本变少或被冲掉；新数据教会了一种在数值任务上有害的习惯。验证方法是干预：只改数据配比重新训练，或在同一 checkpoint 上用针对性探针测试。
+7. 对发布决策的含义：总分上升不足以放行；回归集里若有这个切片，应当阻止发布（[06 §4](../agent_harness/06_公平比较与统计.md#4-开发集保留测试集回归集各管什么)）。
 
-注意：4 个切片各做一次检验，就有多重比较问题——即使没有任何真实变化，也有不小的概率至少一个切片“显著”。情境 A 的切片波动就是提醒。发现切片退步后，应在**新的任务**上复核，而不是只凭这一次。
+注意：4 个切片各做一次检验，就有多重比较问题。`python3 diagnose.py --null-sim 2000` 在内存里重新生成 2000 份“两个 checkpoint 的通过概率完全相同”的数据（40 个任务、4 个切片、每任务 3 次试验，任务难度的分布与生成脚本相同），统计切片被标记的比例。实际输出：
+
+```text
+null simulation (synthetic, no true change): 2000 seeds; 40 tasks in 4 slices, k=3 trials per checkpoint
+  unadjusted 95% interval:
+    per-slice false-flag rate:          603/8000 = 7.5%
+    runs with >=1 flagged slice:        537/2000 = 26.9%
+    runs with >=1 'regression' flag:    278/2000 = 13.9%
+  Bonferroni 98.75% interval:
+    per-slice false-flag rate:          310/8000 = 3.9%
+    runs with >=1 flagged slice:        294/2000 = 14.7%
+    runs with >=1 'regression' flag:    150/2000 = 7.5%
+  all-tasks interval excludes 0:        100/2000 = 5.0%
+```
+
+读法：
+
+- 单个切片的误标率是 7.5%，高于名义上的 5%。原因是每个切片只有 10 个任务，percentile bootstrap 区间在这么小的样本上偏窄。40 个任务的总体区间误标率是 5.0%，符合名义水平。
+- 4 个切片合起来，约 27% 的 run 至少有一个标记。
+- Bonferroni 区间把这个比例降到约 15%，**没有降到 5%**：校正只处理了“检验了 4 次”，没有处理“每个区间本身偏窄”。所以输出里的 “holds after Bonferroni” 不等于“假阳性概率低于 5%”。
+- 草图审计用另一份模拟得到每切片约 9.8%、至少一个标记约 34%。那份模拟的设定没有记录，这里没有复现出那两个数字；方向一致，数值以上面这次运行为准。
+
+发现切片退步后，应在**新的任务**上复核，而不是只凭这一次。
 
 ## 5. 机制：诊断的固定路径
 
 ```text
 0. 关联：每条评估记录都能对上 run、checkpoint、任务、版本吗？
 1. 可比性：任务集、suite 版本、grader 版本、评估配置一致吗？无效试验有多少、集中在哪？
-2. 曲线：loss、BPB、reward、独立通过率各自的首尾变化
+2. 曲线：loss、BPB、reward、独立通过率在同一个 checkpoint 窗口内的首尾变化（窗口尾端是最后一个可比的 checkpoint）
 3. 配对比较：同一批任务上的差，任务级 bootstrap 区间
-4. 切片：按能力类别分别做第 3 步
-5. 下钻：变化最大的任务 → 翻转的试验 → sample_id → 输出与判分证据
-6. 分解（有 reward 时）：reward 通过 × 独立通过 的四格表
+4. 切片：按能力类别分别做第 3 步；写明检验了几个切片，标记是未校正的
+5. 下钻：下降最多的任务（k 很小时只是挑样本的线索）→ 翻转的试验 → sample_id → 输出与判分证据
+6. 分解（有 reward 时）：reward 通过 × 独立通过 的四格表，只用有效试验
 7. 假设与干预：每个解释写出支持它的观察与能否证伪它的实验
 ```
 
@@ -138,15 +176,21 @@ largest per-task drops: [('nume-08', -0.67), ...]
 | suite 或 grader 版本不同 | **停止比较**这一对 checkpoint | 分数不是同一把尺子量的；要比较先重判 |
 | 任务集合不同 | 只在**共同任务**上比较，并在结果里写明共同任务数与各自独有的任务；共同任务不足 80% 时停止 | 少量任务增减时交集仍有意义，但必须让读者知道比较的不是全集 |
 | 存在无效试验 | 不停止；报告数量、原因、集中的切片 | 是否有偏取决于它们集中在哪 |
+| 某任务在一侧没有任何有效试验（`tasks_dropped`） | 该任务退出配对，逐个列出任务与原因；剩下的任务不足共同任务的 80% 时停止 | 不把它记成 0，也不让它无声消失 |
+| 某切片没有任何任务在两侧都有有效试验（`slice_missing`） | **停止比较**这一对 checkpoint | 总体差不再覆盖同一组能力；该切片的退步会完全看不见 |
+
+停止比较后，窗口退到前一个可比的 checkpoint，输出里写明窗口被缩短；没有任何可比的后续 checkpoint 时，不报告配对比较、下钻与分解。
 
 80% 是草图里的默认值，没有理论依据；真实项目按任务集的构成来定。
 
 关键伪代码（完整实现见草图）：
 
 ```python
-def task_rates(records):                 # 每任务在有效试验上的通过率；没有有效试验的任务不当作 0
+def task_rates(records, field):          # 每任务在有效试验上的通过率；没有有效试验的任务不当作 0
 def comparability(first, last):          # 返回结构化问题列表 [{"type", "blocking", "detail"}]
-def paired(a, b, tasks, n_boot=2000):    # 同任务配对差；以任务为单位重采样得到区间
+def paired(a, b, tasks, n_boot=2000, m=1):   # 同任务配对差；以任务为单位重采样得到 95% 区间；m>1 时另给 Bonferroni 区间
+def fisher_drop_p(a, b):                 # 单个任务两次 (通过数, 试验数) 的单侧 Fisher 精确检验
+def null_sim(n_seeds, tasks, k):         # 没有真实变化时切片被误标的比例
 ```
 
 ## 6. 区分四类原因
