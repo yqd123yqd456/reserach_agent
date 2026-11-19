@@ -6,6 +6,8 @@
 > 3. 把强 teacher 蒸馏成小 judge **不是** scalable oversight：teacher 已经知道答案，问题恰恰是没有可信 teacher 的时候怎么办。
 >
 > 应用：[Companies/Resolution](../../Companies/Resolution.md)、[Practice 分支 E](../../Practice/agent_harness/01_岗位分支实验.md)。
+>
+> 2026-11-19 补记：Resolution 邀请邮件推荐的六份较新材料（RL 训练下的 debate、prover-estimator debate、metagaming、CoT monitor 被 motivated reasoning 攻破、模糊任务上的障碍）整理在 [resolution_scalable_oversight/研究地图](../resolution_scalable_oversight/01_研究地图与六份材料.md)。本页 §4“推理时 best-of-N 只是训练的弱 proxy”的限制，在那里有直接的训练实验可对照（Kenton et al. 2026）。
 
 ## 1. 问题定义
 

@@ -23,6 +23,7 @@ other/                    # 原始任务文件与其他资料
 | training_eval_diagnostics | 2026-11-14 | [Knowledge/training_eval_diagnostics/README.md](Knowledge/training_eval_diagnostics/README.md) | 可比性检查、配对比较、切片、从曲线下钻到样本；含合成日志与诊断脚本 |
 | agent_failure_investigation | 2026-11-14 | [Knowledge/agent_failure_investigation/README.md](Knowledge/agent_failure_investigation/README.md) | 让 agent 辅助调查大量 rollout：证据绑定与校验、工具 schema、对调查助手自身的评估 |
 | autoresearch_loop | 2026-11-14 | [Knowledge/autoresearch_loop/README.md](Knowledge/autoresearch_loop/README.md) | 读懂一个自动实验项目的真实机制，设计并验证范围明确的改动；含 CPU 上的 runner 草图 |
+| resolution_scalable_oversight | 2026-11-19 | [Knowledge/resolution_scalable_oversight/README.md](Knowledge/resolution_scalable_oversight/README.md) | Resolution Scalable Oversight RS 第一轮 20 分钟 screening：一页 brief、英文口述稿、六份推荐材料的研究地图、两个未运行的实验提案 |
 
 后六个专题共同服务于 Mirendil Model Evaluation take-home 的准备，总览与学习顺序见 [Companies/Mirendil.md §5](Companies/Mirendil.md#5-take-home-准备六个专题)。它们是可能的题型方向，不是已知考题。 跨专题的执行指南见 [Review/mirendil_takehome/执行指南.md](Review/mirendil_takehome/执行指南.md)。
 

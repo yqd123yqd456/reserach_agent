@@ -1,7 +1,28 @@
 # Resolution Alignment：Research Scientist（Scalable Oversight）
 
-> 证据日期：2026-11-13。当前轮次：**第一轮**（本人确认）。具体邀请安排优先于下面的公开流程。
+> 证据日期：2026-11-19（JD 与官网当日重新读取；2026-11-13 的内容保留并标注）。当前轮次：**第一轮 screening，20 分钟**（邀请邮件，由本人转述）。具体邀请安排优先于下面的公开流程。
 > 只采用对齐研究机构 Resolution（resolution.org）的来源，不混入其他同名公司。
+
+## 0. 当前入口（2026-11-19）
+
+| 要用的 | 位置 |
+|---|---|
+| 一页 Screening Brief | [Review/resolution_scalable_oversight/00](../Review/resolution_scalable_oversight/00_Screening_Brief.md) |
+| 英文口述稿、可能问题、复习路径、个人信息状态 | [Review/resolution_scalable_oversight/01](../Review/resolution_scalable_oversight/01_口述稿与问答.md) |
+| 岗位分析、经历与缺口、证据状态 | [Knowledge/resolution_scalable_oversight](../Knowledge/resolution_scalable_oversight/README.md) |
+| 六份推荐材料的研究地图 | [研究地图](../Knowledge/resolution_scalable_oversight/01_研究地图与六份材料.md) |
+| 两个未运行的实验提案 | [Practice/resolution_scalable_oversight/01](../Practice/resolution_scalable_oversight/01_两个实验提案.md) |
+
+**邀请邮件（本人转述，我没有看到原件）**
+
+- “We'd like to invite you to a 20-minute screening call. We'll discuss your research background and interests and tell you about the Scalable Oversight team.”
+- 团队方向一：“Identifying and characterizing how oversight will systematically fail as we scale up current AI training.”
+- 团队方向二：“Developing oversight methods that can scale beyond human ability, including to artificial superintelligence.”
+- “We also work on alternatives to debate, for instance consistency methods.”
+- 六份推荐材料，写明不需要在通话前读完。
+- 面试官：未知。不预约、不发邮件、不联系任何人，这些由本人处理。
+
+**六份推荐材料的归属**（详见 [研究地图 §0](../Knowledge/resolution_scalable_oversight/01_研究地图与六份材料.md#0-六份材料的核对)）：没有一份以 Resolution 名义发表。#1（Arcadia Impact 的研究短文）与 #5（UK AISI）有 Jacob Pfau；#5、#6 有 Geoffrey Irving；两人是 Resolution 创始成员。#2 来自 OpenAI 与 Apollo Research；#3 是 Howe 与 Carroll；#4 是 Kenton 等。
 
 ## 1. JD 原文（Ashby API，发布于 2026-06-27，Berkeley；Ashby 标注 hybrid，正文写“远程只在特殊情况下考虑”）
 
@@ -10,20 +31,25 @@
 - 适合人选：PhD 或同等经验、研究记录、扎实数学背景；“Can credibly articulate why your area of alignment work is worth pursuing”；“use AI tools aggressively … with appropriate care to not get fooled!”。对齐经验“not a requirement”。
 - Scalable Oversight 加分：“Hands-on experience with debate, prover-verifier games, RLHF empirics at frontier scale”；熟悉 scalable oversight 文献；博弈论、复杂性理论、机制设计或决策论；跨项目要求包括把实验扩展到十亿参数以上的模型。
 - **公开流程**（原文）：
-  1. Initial screener：15 分钟，与一位工程师或研究员谈研究背景、动机与兴趣。
+  1. Initial screener：15 分钟，与一位工程师或研究员谈研究背景、动机与兴趣。（2026-11-19 复核，JD 仍写 15 分钟；**你的邀请邮件是 20 分钟，以邮件为准**。）
   2. Work test + review：4 小时带薪 take-home，然后 45 分钟讨论。
   3. Experience interview：30–40 分钟。
   4. Leadership 1:1：30 分钟。
   5. References。
 - Scalable Oversight 申请滚动审阅，两周内回复。**RE 的 coding 流程不适用于 RS。**
+- 2026-11-19 复核补充：JD 的“About”写 Resolution 由 UK AISI Alignment Team 与 Timaeus 的研究者于 2026 年创立；RS “work as part of a research program led by a senior researcher”；“Are motivated by alignment of artificial superintelligence (ASI) and want to contribute to it full-time”；地点 Berkeley，可办签证；最低学历为相关领域学士或同等经验。Ashby 同时挂着 Research Engineer（2026-11-17 更新）与 Lean Engineer，不是本岗位。
 
 ## 2. 机构上下文
 
 - **Launch 文章**（2026-06-10，Irving 等七人）：目标是对 ASI 对齐获得“higher confidence”，方式是理论与实证的组合押注，并大量投入自动化；“Theory unlocks higher automation”。所列方向中 scalable oversight 写作“complexity theory + empirics of amplification, debate, scientist AI”；其他方向包括学习理论（SLT 等）、heuristic arguments、博弈论、personas。一个方向服务另一个的例子：“debate is useless if game-theoretic equilibria are safe but cannot be reached by practical training”。自动化工作包括为 Codex 与 Claude Code 写 skills 和 prompts、让模型用另一族模型检查自己工作的 MCP 工具。
+- **创始团队**（launch 文章）：Geoffrey Irving（launch 文章写作 Chief Scientist at UK AISI）、Daniel Murfet（Timaeus Head of Research）；AISI Alignment 的 Alex Holness-Tofts 与 Jacob Pfau；Timaeus 的 Jesse Hoogland、Stan van Wingerden、Marco Cozzi。谁在 Scalable Oversight 团队、当前任职是否有变化，**未核实**。
+- **Launch 文章中与本岗位最相关的两句**：理论与实证的迭代提供“two different types of filters with which to screen out false progress”；“LLMs make mistakes, and any work that leans on research taste as a guide will mean some mistakes are very hard to catch”。
 - **Research 页面**：是出版物列表，几乎全部是 SLT、susceptibilities 与可解释性工作（Timaeus 与 Murfet），没有标为 scalable oversight 的条目。**不要把全站文章都称为 scalable oversight 工作**。
 - **名称**：上线时短暂使用品牌名 Sequent，因与 sequent.inc 重名改名；法律实体原名 Timaeus Research, Inc.，现为 Resolution Alignment, Inc.（来自 2026-06-15 的改名文章）。
 
 ## 3. 第一轮（15 分钟）准备重点
+
+> 这一节是 2026-11-13 按公开 JD 的 15 分钟写的，保留作历史记录。**当前准备以 [§0](#0-当前入口2026-11-19) 的入口为准**：时长改为 20 分钟；研究问题改为围绕邮件给出的两个方向和六份材料；下面的两个候选问题（P1、P2／P3）仍可用，但不再是首选。
 
 | 要讲清的 | 依据 | 材料 |
 |---|---|---|
@@ -56,10 +82,15 @@
 
 ## 6. 反问
 
+> 2026-11-19 更新的三个反问见 [Screening Brief §6](../Review/resolution_scalable_oversight/00_Screening_Brief.md#6-三个反问)。下面是 2026-11-13 的版本。
+
 - 第一年 scalable oversight 方向更偏理论还是实证？实证工作主要用多大规模的模型？
 - 对“均衡是否可达”的问题，目前倾向用什么实验来检验？
 - work test 是否允许使用 AI 工具？（JD 鼓励使用 AI 工具，但具体规则未知）
 
 ## 未确认事项
 
-第一轮的具体时间与形式；面试官；work test 题目。
+- 面试官身份；第一轮的具体日期（时长已知为 20 分钟）。
+- Scalable Oversight 团队成员与分工；“consistency methods”具体所指。
+- work test 题目与 AI 使用规则。
+- 没有找到该方向的面经（2026-11-19 检索）。
